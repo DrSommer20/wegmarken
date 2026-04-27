@@ -118,16 +118,19 @@ export default function TripScreen() {
   };
 
   const startEditStop = (stop: any) => {
+    // Populate the form with the existing data
     setEditingStop(stop);
     setEditName(stop.name || '');
     setEditDesc(stop.description || '');
     setEditDate(stop.stopDate || '');
-    setSelectedStop(null);
+    setSelectedStop(null); // hide the view panel so the form can show up
   };
 
   const saveEditStop = async () => {
     if (!editingStop) return;
+    
     try {
+      // Just dumping the whole stop object back but overriding the edited fields
       await apiClient.put(`/trips/${id}/stops/${editingStop.id}`, {
         ...editingStop,
         name: editName,
@@ -135,8 +138,11 @@ export default function TripScreen() {
         stopDate: editDate || null,
       });
       setEditingStop(null);
+      
+      // refresh the map to show the changes
       fetchTrip();
     } catch (e) {
+      console.warn("Failed to update stop:", e);
       Alert.alert('Fehler', 'Änderungen konnten nicht gespeichert werden');
     }
   };

@@ -2,7 +2,7 @@
 
 # 🧭 Wegmarken
 
-**Dein digitales Reisetagebuch — Reisen festhalten, Erinnerungen teilen, Momente wiedererleben.**
+**Your digital travel diary — capture journeys, share memories, relive moments.**
 
 [![CI/CD Pipeline](https://github.com/DrSommer20/wegmarken/actions/workflows/deploy.yml/badge.svg)](https://github.com/DrSommer20/wegmarken/actions/workflows/deploy.yml)
 ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Web-blue?style=flat-square)
@@ -15,24 +15,24 @@
 
 ## ✨ Features
 
-| Feature | Beschreibung |
+| Feature | Description |
 |---|---|
-| 🗺️ **Interaktive Karte** | Stops auf einer Weltkarte anlegen, verschieben und erkunden |
-| 📸 **Bulk-Bild-Upload** | Mehrere Bilder gleichzeitig hochladen — automatische Zuordnung via GPS |
-| 🤖 **Auto-Clustering** | Bilder werden anhand ihrer EXIF-Geodaten automatisch zu Stops gruppiert (~2km Radius) |
-| 🏙️ **Reverse Geocoding** | Stops werden automatisch nach der nächsten Stadt/dem nächsten Ort benannt |
-| 🚗 **Roadtrip-Modus** | Stops chronologisch sortieren und als Route darstellen |
-| 🧲 **NFC-Integration** | Reisen per NFC-Tag teilen — Scan öffnet die App direkt |
-| 🔐 **JWT-Authentifizierung** | Sichere Anmeldung mit persistenten Tokens |
-| ☁️ **AWS S3 Storage** | Bilder werden sicher in der Cloud gespeichert |
-| 📱 **Cross-Platform** | Läuft nativ auf Android, iOS und im Web-Browser |
+| 🗺️ **Interactive Map** | Create, move, and explore stops on a world map. |
+| 📸 **Bulk Image Upload** | Upload multiple photos at once — automatic assignment via GPS data. |
+| 🤖 **Auto-Clustering** | Photos are automatically grouped into stops based on their EXIF geodata (~2km radius). |
+| 🏙️ **Reverse Geocoding** | Stops are automatically named after the nearest city or town. |
+| 🚗 **Roadtrip Mode** | Sort your stops chronologically and display them as a route. |
+| 🧲 **NFC Integration** | Share your trips via NFC tags — scanning opens the app directly! |
+| 🔐 **JWT Authentication** | Secure login with persistent tokens. |
+| ☁️ **AWS S3 Storage** | All images are safely stored in the cloud. |
+| 📱 **Cross-Platform** | Runs natively on Android, iOS, and in any Web Browser. |
 
-## 🏗️ Architektur
+## 🏗️ Architecture
 
 ```
 ┌──────────────────────┐       ┌──────────────────────┐       ┌─────────────┐
 │   Frontend (Expo)    │──────▶│  Backend (Spring Boot)│──────▶│   AWS S3    │
-│  React Native + Web  │  API  │  REST API + JWT Auth  │       │  Bilder     │
+│  React Native + Web  │  API  │  REST API + JWT Auth  │       │  Images     │
 │  Leaflet / MapView   │◀──────│  H2 Database          │       └─────────────┘
 └──────────────────────┘       │  EXIF Processing      │       ┌─────────────┐
                                │  Reverse Geocoding    │──────▶│  Nominatim  │
@@ -42,23 +42,23 @@
 
 ## 🚀 Quickstart
 
-### Voraussetzungen
+### Prerequisites
 
 - **Node.js** ≥ 18
 - **Java** ≥ 17
-- **Docker** + **Docker Compose** (für Deployment)
-- **Expo Go** App (zum Testen auf dem Handy)
+- **Docker** + **Docker Compose** (for deployment)
+- **Expo Go** App (for mobile testing)
 
-### Frontend starten (lokal)
+### Run Frontend (Local)
 
 ```bash
 cd frontend-expo
-cp .env.example .env.local   # API-URL konfigurieren
+cp .env.example .env.local   # Configure your API URL here
 npm install
-npm start                     # Expo Dev Server
+npm start                     # Starts the Expo Dev Server
 ```
 
-### Backend starten (lokal)
+### Run Backend (Local)
 
 ```bash
 cd backend
@@ -67,65 +67,65 @@ cd backend
 
 ### Deployment (Docker)
 
-Das Projekt nutzt eine **GitHub Actions CI/CD Pipeline**, die automatisch bei jedem Push auf `main`:
-1. Backend- und Frontend-Docker-Images baut
-2. Sie in die GitHub Container Registry pusht
-3. Per SSH auf dem Server deployt
-4. Health-Checks durchführt (mit Auto-Rollback bei Fehler)
+This project utilizes a **GitHub Actions CI/CD Pipeline** that automatically triggers on every push to `main`:
+1. Builds the backend and frontend Docker images.
+2. Pushes them to the GitHub Container Registry.
+3. Deploys them to the server via SSH.
+4. Performs health checks (with auto-rollback on failure).
 
-## 🔧 Konfiguration
+## 🔧 Configuration
 
-Folgende **GitHub Secrets** müssen für das automatische Deployment gesetzt sein:
+The following **GitHub Secrets** need to be configured for automatic deployment:
 
-| Secret | Beschreibung |
+| Secret | Description |
 |---|---|
-| `SERVER_HOST` | IP/Hostname des Servers |
-| `SERVER_USER` | SSH-Benutzername |
-| `SERVER_SSH_KEY` | Privater SSH-Schlüssel |
-| `AWS_S3_BUCKET_NAME` | Name des S3-Buckets |
-| `AWS_S3_REGION` | AWS-Region (z.B. `eu-north-1`) |
+| `SERVER_HOST` | Server IP or Hostname |
+| `SERVER_USER` | SSH Username |
+| `SERVER_SSH_KEY` | Private SSH Key |
+| `AWS_S3_BUCKET_NAME` | Name of your S3 Bucket |
+| `AWS_S3_REGION` | AWS Region (e.g., `eu-north-1`) |
 | `AWS_ACCESS_KEY_ID` | AWS IAM Access Key |
 | `AWS_SECRET_ACCESS_KEY` | AWS IAM Secret Key |
-| `JWT_SECRET` | Geheimer Schlüssel für JWT-Tokens |
+| `JWT_SECRET` | Secret key for JWT signature |
 
-## 📁 Projektstruktur
+## 📁 Project Structure
 
 ```
 wegmarken/
 ├── backend/                    # Spring Boot REST API
 │   ├── src/main/java/com/wegmarken/
 │   │   ├── controller/         # REST Endpoints
-│   │   ├── domain/             # JPA Entities
+│   │   ├── domain/             # JPA Entities & Embedded configs
 │   │   ├── security/           # JWT Auth & Security Config
-│   │   ├── service/            # Business Logic, S3, EXIF
+│   │   ├── service/            # Business Logic, S3 integration, EXIF parsing
 │   │   └── repository/         # Data Access Layer
 │   └── Dockerfile
 ├── frontend-expo/              # React Native (Expo) App
-│   ├── app/                    # Screens (File-based Routing)
-│   ├── components/             # Wiederverwendbare Komponenten
-│   ├── api/                    # API Client (Axios)
-│   ├── services/               # NFC, etc.
+│   ├── app/                    # Screens (File-based Routing via Expo Router)
+│   ├── components/             # Reusable UI Components
+│   ├── api/                    # Axios API Client
+│   ├── services/               # NFC handling, etc.
 │   └── Dockerfile
-├── docker-compose.prod.yml     # Produktions-Setup
-└── .github/workflows/          # CI/CD Pipeline
+├── docker-compose.prod.yml     # Production Setup
+└── .github/workflows/          # CI/CD Pipeline Definitions
 ```
 
 ## 🛣️ Roadmap
 
 - [x] Trip & Stop Management
-- [x] Interaktive Karte mit View/Edit-Modi
-- [x] JWT-basierte Authentifizierung
+- [x] Interactive Map with View/Edit Modes
+- [x] JWT-based Authentication
 - [x] NFC Deep Linking
-- [x] AWS S3 Bild-Upload
+- [x] AWS S3 Image Upload
 - [x] EXIF Auto-Clustering & Reverse Geocoding
-- [x] Draggable Pins
-- [x] Stop bearbeiten
-- [x] Vollbild-Bildansicht
-- [ ] Freunde-System & geteilte Reisen
-- [ ] Trip löschen & bearbeiten
-- [ ] Bilder manuell Stops zuordnen
-- [ ] Route zwischen Stops zeichnen (Roadtrip)
-- [ ] Offline-Modus
+- [x] Draggable Map Pins
+- [x] Stop Editing & Details
+- [x] Fullscreen Image Gallery
+- [x] Unassigned Images Manual Assignment
+- [ ] Friends System & Shared Trips
+- [ ] Trip Editing & Deletion
+- [ ] Draw Route lines between stops (Roadtrip mode)
+- [ ] Offline Mode support
 
 ---
 

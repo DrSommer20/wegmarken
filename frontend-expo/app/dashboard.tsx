@@ -9,7 +9,7 @@ export default function Dashboard() {
   const [trips, setTrips] = useState<any[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   
-  // New Trip State
+  // State for creating a new trip in the modal
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const [tripType, setTripType] = useState<'NORMAL' | 'ROADTRIP'>('NORMAL');
 
   useEffect(() => {
+    // Initial load of all user trips
     fetchTrips();
   }, []);
 
@@ -25,7 +26,7 @@ export default function Dashboard() {
       const res = await apiClient.get('/trips');
       setTrips(res.data);
     } catch (e) {
-      console.error(e);
+      console.error("Oops, couldn't fetch trips:", e);
       Alert.alert('Fehler', 'Reisen konnten nicht geladen werden');
     }
   };
@@ -36,6 +37,7 @@ export default function Dashboard() {
   };
 
   const resetModal = () => {
+    // Clean up the modal fields after saving or canceling
     setModalVisible(false);
     setNewName('');
     setNewDesc('');

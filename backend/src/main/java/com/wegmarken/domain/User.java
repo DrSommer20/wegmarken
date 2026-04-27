@@ -26,9 +26,10 @@ public class User {
 
     private String email;
     private String mapPreference = "standard";
-    private Double usedStorageMb = 0.0;
-    private Double maxStorageMb = 500.0; // Free tier
-    private String subscriptionTier = "FREE";
+    
+    // Grouped the subscription config into its own object to keep this clean
+    @Embedded
+    private Subscription subscription = new Subscription();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore

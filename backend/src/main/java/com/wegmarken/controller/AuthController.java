@@ -28,6 +28,10 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
+    /**
+     * Standard registration. We check if the name is taken, 
+     * then hash the password and save.
+     */
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody AuthRequest request) {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
@@ -42,6 +46,10 @@ public class AuthController {
         return ResponseEntity.ok(new AuthResponse(token));
     }
 
+    /**
+     * Login - if successful, we return a JWT. 
+     * Spring Security handles the heavy lifting here.
+     */
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody AuthRequest request) {
         authenticationManager.authenticate(
@@ -74,6 +82,10 @@ public class AuthController {
         private String mapType;
     }
 
+    /**
+     * Returns the full profile of the logged-in user.
+     * Useful for getting subscription status and preferences.
+     */
     @GetMapping("/me")
     public ResponseEntity<User> getCurrentUser(java.security.Principal principal) {
         User user = userRepository.findByUsername(principal.getName())
@@ -81,6 +93,9 @@ public class AuthController {
         return ResponseEntity.ok(user);
     }
 
+    /**
+     * Change password - needs the old one to verify it's really the user.
+     */
     @PutMapping("/password")
     public ResponseEntity<?> changePassword(java.security.Principal principal, @RequestBody PasswordChangeRequest request) {
         User user = userRepository.findByUsername(principal.getName())
@@ -103,6 +118,9 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Save small UI preferences like map type (satellite vs standard)
+     */
     @PutMapping("/preferences")
     public ResponseEntity<?> updatePreferences(java.security.Principal principal, @RequestBody PreferenceRequest request) {
         User user = userRepository.findByUsername(principal.getName())

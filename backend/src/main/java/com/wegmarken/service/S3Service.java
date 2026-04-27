@@ -49,6 +49,7 @@ public class S3Service {
             if (originalFilename != null && originalFilename.contains(".")) {
                 extension = originalFilename.substring(originalFilename.lastIndexOf("."));
             }
+            // Give it a random name to avoid collisions if people upload files with the same name
             String fileName = UUID.randomUUID().toString() + extension;
 
             ObjectMetadata metadata = new ObjectMetadata();
@@ -56,8 +57,9 @@ public class S3Service {
             metadata.setContentLength(file.getSize());
 
             PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, fileName, file.getInputStream(), metadata);
-            // Public read access might be better configured on the bucket level policy, 
-            // but we can also set the ACL here if the bucket allows it.
+            
+            // NOTE: Public read access should really be configured on the bucket policy directly, 
+            // AWS doesn't like ACLs anymore. Leaving this out for now!
             // putObjectRequest.withCannedAcl(CannedAccessControlList.PublicRead);
 
             s3client.putObject(putObjectRequest);

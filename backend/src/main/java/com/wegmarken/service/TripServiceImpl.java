@@ -128,11 +128,14 @@ public class TripServiceImpl implements TripService {
         for (MultipartFile file : files) {
             ImageMeta meta = new ImageMeta();
             meta.file = file;
+            
+            // let's see if this image actually has GPS data
             Map<String, Double> coords = imageProcessorService.extractGpsCoordinates(file);
             if (coords.containsKey("latitude")) {
                 double lat = coords.get("latitude");
                 double lng = coords.get("longitude");
-                // Treat 0,0 (null island) as invalid - almost certainly means no real GPS data
+                
+                // Treat 0,0 (Null Island) as invalid - some cameras default to this when they don't have a fix
                 if (Math.abs(lat) < 0.001 && Math.abs(lng) < 0.001) {
                     noGpsImages.add(meta);
                 } else {

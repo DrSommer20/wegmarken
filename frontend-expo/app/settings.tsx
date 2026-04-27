@@ -54,20 +54,27 @@ export default function SettingsScreen() {
       setUsername(res.data.username || '');
       setEmail(res.data.email || '');
       
+      // Update local storage so the map knows our preference immediately
       if (res.data.mapPreference) {
         setMapType(res.data.mapPreference as any);
         if (Platform.OS === 'web') localStorage.setItem('mapType', res.data.mapPreference);
         else AsyncStorage.setItem('mapType', res.data.mapPreference);
       }
 
-      setUsedMB(res.data.usedStorageMb || 0);
-      
-      const tierKey = res.data.subscriptionTier as keyof typeof STORAGE_TIERS;
-      if (STORAGE_TIERS[tierKey]) {
-        setCurrentTier(STORAGE_TIERS[tierKey]);
+      // Check the new nested subscription object we built in the backend
+      const sub = res.data.subscription;
+      if (sub) {
+        setUsedMB(sub.usedStorageMb || 0);
+        
+        // Try to match the backend tier to our local UI tiers
+        const tierKey = sub.tier as keyof typeof STORAGE_TIERS;
+        if (STORAGE_TIERS[tierKey]) {
+          setCurrentTier(STORAGE_TIERS[tierKey]);
+        }
       }
     } catch (e) {
-      // Fallback
+      // Don't crash the UI if the backend is down, just fall back to defaults
+      console.warn("Couldn't fetch user info, maybe offline?", e);
     }
   };
 
