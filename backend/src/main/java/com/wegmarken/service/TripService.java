@@ -20,4 +20,9 @@ public interface TripService {
     List<TripImage> bulkAddImages(Long tripId, MultipartFile[] files);
     
     TripImage assignImageToStop(Long tripId, Long imageId, Long stopId);
+    
+    void deleteTrip(Long id);
+    void deleteStop(Long tripId, Long stopId);
+    
+    void inviteToTrip(Long tripId, String username);
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, TextInput, Platform, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import apiClient, { clearToken } from '../api/apiClient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 // Storage tiers (placeholder for subscription model)
 // Travel-themed storage tiers
@@ -20,7 +20,7 @@ export default function SettingsScreen() {
   const [email, setEmail] = useState('');
   
   // Preferences
-  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('hybrid');
   
   // Password
   const [showPwChange, setShowPwChange] = useState(false);
@@ -38,28 +38,42 @@ export default function SettingsScreen() {
   }, []);
 
   const saveMapType = async (type: 'standard' | 'satellite' | 'hybrid') => {
+    const previousType = mapType;
     setMapType(type);
     try {
       if (Platform.OS === 'web') {
         localStorage.setItem('mapType', type);
       } else {
-        await AsyncStorage.setItem('mapType', type);
+        await SecureStore.setItemAsync('mapType', type);
       }
       await apiClient.put('/auth/preferences', { mapType: type });
-    } catch (e) { /* ignore */ }
+    } catch (e) { 
+      console.error("Failed to save map preference:", e);
+      // Rollback on error
+      setMapType(previousType);
+    }
   };
 
   const fetchUserInfo = async () => {
+    // Try to load from local storage first for instant feedback
+    try {
+      const localMapType = Platform.OS === 'web' 
+        ? localStorage.getItem('mapType') 
+        : await SecureStore.getItemAsync('mapType');
+      if (localMapType) setMapType(localMapType as any);
+    } catch (e) {}
+
     try {
       const res = await apiClient.get('/auth/me');
       setUsername(res.data.username || '');
       setEmail(res.data.email || '');
       
-      // Update local storage so the map knows our preference immediately
+      // Update local storage and state if backend has a preference
       if (res.data.mapPreference) {
-        setMapType(res.data.mapPreference as any);
-        if (Platform.OS === 'web') localStorage.setItem('mapType', res.data.mapPreference);
-        else AsyncStorage.setItem('mapType', res.data.mapPreference);
+        const backendPref = res.data.mapPreference as any;
+        setMapType(backendPref);
+        if (Platform.OS === 'web') localStorage.setItem('mapType', backendPref);
+        else await SecureStore.setItemAsync('mapType', backendPref);
       }
 
       // Check the new nested subscription object we built in the backend

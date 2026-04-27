@@ -31,8 +31,7 @@ public class Trip {
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<TripImage> images = new ArrayList<>();
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
-    private User user;
+    private List<TripMember> members = new ArrayList<>();
 }

@@ -5,7 +5,7 @@ import apiClient from '../../api/apiClient';
 import { writeNfcTag } from '../../services/nfcService';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import MapComponent from '../../components/MapComponent';
 import DatePickerField from '../../components/DatePicker';
 
@@ -53,7 +53,11 @@ export default function TripScreen() {
   const [assignImage, setAssignImage] = useState<any>(null);
 
   // Map Type
-  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('hybrid');
+
+  // Friends & Invites
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [friends, setFriends] = useState<any[]>([]);
 
   useEffect(() => {
     fetchTrip();
@@ -69,7 +73,7 @@ export default function TripScreen() {
     try {
       const saved = Platform.OS === 'web'
         ? localStorage.getItem('mapType')
-        : await AsyncStorage.getItem('mapType');
+        : await SecureStore.getItemAsync('mapType');
       if (saved) setMapType(saved as any);
     } catch (e) { /* ignore */ }
   };
@@ -251,6 +255,64 @@ export default function TripScreen() {
     }
   };
 
+  const deleteTrip = async () => {
+    Alert.alert(
+      'Reise löschen',
+      'Möchtest du diese Reise wirklich löschen? Alle Daten werden entfernt.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Löschen', style: 'destructive', onPress: async () => {
+          try {
+            await apiClient.delete(`/trips/${id}`);
+            router.replace('/dashboard');
+          } catch (e) {
+            Alert.alert('Fehler', 'Reise konnte nicht gelöscht werden');
+          }
+        }}
+      ]
+    );
+  };
+
+  const deleteStop = async (stopId: number) => {
+    Alert.alert(
+      'Stop löschen',
+      'Möchtest du diesen Stop wirklich löschen?',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Löschen', style: 'destructive', onPress: async () => {
+          try {
+            await apiClient.delete(`/trips/${id}/stops/${stopId}`);
+            setSelectedStop(null);
+            fetchTrip();
+          } catch (e) {
+            Alert.alert('Fehler', 'Stop konnte nicht gelöscht werden');
+          }
+        }}
+      ]
+    );
+  };
+
+  const fetchFriends = async () => {
+    try {
+      const res = await apiClient.get('/friends');
+      setFriends(res.data);
+      setShowInviteModal(true);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const inviteFriend = async (friendUsername: string) => {
+    try {
+      await apiClient.post(`/trips/${id}/invite`, { username: friendUsername });
+      Alert.alert('Erfolg', `${friendUsername} wurde eingeladen!`);
+      setShowInviteModal(false);
+      fetchTrip();
+    } catch (e) {
+      Alert.alert('Fehler', 'Einladung fehlgeschlagen');
+    }
+  };
+
   if (!trip) return <View style={styles.center}><Text style={{ color: 'white' }}>Lade...</Text></View>;
 
   const sortedStops = getSortedStops();
@@ -265,6 +327,7 @@ export default function TripScreen() {
         tempMarker={tempMarker}
         isEditMode={mode === 'edit'}
         mapType={mapType}
+        showRoute={isRoadtrip}
         onMarkerDragEnd={async (stopId: any, lat: any, lng: any) => {
           const stop = trip.stops.find((s: any) => s.id === stopId);
           if (stop) {
@@ -414,6 +477,9 @@ export default function TripScreen() {
               <TouchableOpacity onPress={() => startEditStop(selectedStop)}>
                 <Text style={{color: '#ff8a00', fontSize: 20}}>✏️</Text>
               </TouchableOpacity>
+              <TouchableOpacity onPress={() => deleteStop(selectedStop.id)}>
+                <Text style={{color: '#e52e71', fontSize: 20}}>🗑️</Text>
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => setSelectedStop(null)}>
                 <Text style={{color: 'white', fontSize: 20}}>✕</Text>
               </TouchableOpacity>
@@ -533,6 +599,14 @@ export default function TripScreen() {
                 </View>
               )}
             </View>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity onPress={fetchFriends} style={{ padding: 4 }}>
+                <Text style={{ color: '#ff8a00', fontSize: 20 }}>👤+</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={deleteTrip} style={{ padding: 4 }}>
+                <Text style={{ color: '#e52e71', fontSize: 20 }}>🗑️</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           {trip.description ? <Text style={styles.desc}>{trip.description}</Text> : null}
           {(trip.startDate || trip.endDate) && (
@@ -609,6 +683,39 @@ export default function TripScreen() {
               resizeMode="contain"
             />
           )}
+        </View>
+      </Modal>
+      
+      {/* Invite Friends Modal */}
+      <Modal visible={showInviteModal} transparent animationType="slide">
+        <View style={styles.assignModalOverlay}>
+          <View style={styles.assignModalContent}>
+            <View style={styles.overlayHeader}>
+              <Text style={styles.overlayTitle}>Freunde einladen</Text>
+              <TouchableOpacity onPress={() => setShowInviteModal(false)}>
+                <Text style={{ color: 'white', fontSize: 18 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              {friends.map((f: any) => (
+                <TouchableOpacity 
+                  key={f.id} 
+                  style={styles.assignStopItem} 
+                  onPress={() => inviteFriend(f.username)}
+                >
+                  <Text style={{ color: 'white', fontWeight: 'bold' }}>{f.username}</Text>
+                </TouchableOpacity>
+              ))}
+              {friends.length === 0 && (
+                <View style={{ alignItems: 'center', padding: 20 }}>
+                  <Text style={{ color: '#666', marginBottom: 12 }}>Keine Freunde gefunden.</Text>
+                  <TouchableOpacity onPress={() => { setShowInviteModal(false); router.push('/friends'); }}>
+                    <Text style={{ color: '#e52e71', fontWeight: 'bold' }}>Freunde hinzufügen</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </ScrollView>
+          </View>
         </View>
       </Modal>
     </View>

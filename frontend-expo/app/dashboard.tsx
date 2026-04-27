@@ -65,15 +65,38 @@ export default function Dashboard() {
     }
   };
 
+  const deleteTrip = async (id: number) => {
+    Alert.alert(
+      'Reise löschen',
+      'Möchtest du diese Reise wirklich löschen? Alle Stops und Bilder werden entfernt.',
+      [
+        { text: 'Abbrechen', style: 'cancel' },
+        { text: 'Löschen', style: 'destructive', onPress: async () => {
+          try {
+            await apiClient.delete(`/trips/${id}`);
+            setTrips(trips.filter(t => t.id !== id));
+          } catch (e) {
+            Alert.alert('Fehler', 'Reise konnte nicht gelöscht werden');
+          }
+        }}
+      ]
+    );
+  };
+
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity style={styles.card} onPress={() => router.push(`/trip/${item.id}`)}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>{item.name}</Text>
-        {item.tripType === 'ROADTRIP' && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>🚗 Roadtrip</Text>
-          </View>
-        )}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {item.tripType === 'ROADTRIP' && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>🚗 Roadtrip</Text>
+            </View>
+          )}
+          <TouchableOpacity onPress={() => deleteTrip(item.id)} style={styles.deleteIcon}>
+            <Text style={{ color: '#e52e71', fontSize: 16 }}>🗑️</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       {item.description ? <Text style={styles.cardDesc}>{item.description}</Text> : null}
       {(item.startDate || item.endDate) && (
@@ -90,6 +113,9 @@ export default function Dashboard() {
       <View style={styles.header}>
         <TouchableOpacity style={styles.primaryBtn} onPress={() => setModalVisible(true)}>
           <Text style={styles.btnText}>+ Neue Reise</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/friends')}>
+          <Text style={styles.btnText}>👥</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/settings')}>
           <Text style={styles.btnText}>⚙️</Text>
@@ -213,6 +239,7 @@ const styles = StyleSheet.create({
   primaryBtn: { backgroundColor: '#e52e71', padding: 12, borderRadius: 10 },
   secondaryBtn: { backgroundColor: 'rgba(255, 255, 255, 0.1)', padding: 12, borderRadius: 10 },
   btnText: { color: 'white', fontWeight: 'bold' },
+  deleteIcon: { padding: 4 },
   
   // Modal Styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center' },

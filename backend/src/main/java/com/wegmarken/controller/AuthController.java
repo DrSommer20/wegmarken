@@ -25,7 +25,7 @@ public class AuthController {
 
     public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
                           PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
-                          com.wegmarken.service.SubscriptionService subscriptionService) {
+                          SubscriptionService subscriptionService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;

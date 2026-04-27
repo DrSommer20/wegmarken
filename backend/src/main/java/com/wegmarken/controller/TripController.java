@@ -68,4 +68,22 @@ public class TripController {
             @PathVariable Long stopId) {
         return ResponseEntity.ok(tripService.assignImageToStop(tripId, imageId, stopId));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTrip(@PathVariable Long id) {
+        tripService.deleteTrip(id);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/{tripId}/stops/{stopId}")
+    public ResponseEntity<Void> deleteStop(@PathVariable Long tripId, @PathVariable Long stopId) {
+        tripService.deleteStop(tripId, stopId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/invite")
+    public ResponseEntity<Void> inviteToTrip(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        tripService.inviteToTrip(id, body.get("username"));
+        return ResponseEntity.ok().build();
+    }
 }

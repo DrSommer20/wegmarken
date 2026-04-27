@@ -25,13 +25,19 @@ public class User {
     private String password;
 
     private String email;
-    private String mapPreference = "standard";
+    private String mapPreference = "hybrid";
     
     // Grouped the subscription config into its own object to keep this clean
     @Embedded
     private Subscription subscription = new Subscription();
 
+    @ManyToMany
+    @JoinTable(name = "user_friends",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "friend_id"))
+    private List<User> friends = new ArrayList<>();
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
-    private List<Trip> trips = new ArrayList<>();
+    private List<TripMember> memberships = new ArrayList<>();
 }

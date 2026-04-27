@@ -3,15 +3,14 @@ package com.wegmarken.service;
 import com.wegmarken.domain.Stop;
 import com.wegmarken.domain.Trip;
 import com.wegmarken.domain.TripImage;
-import com.wegmarken.repository.StopRepository;
-import com.wegmarken.repository.TripImageRepository;
-import com.wegmarken.repository.TripRepository;
+import com.wegmarken.domain.TripMember;
+import com.wegmarken.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class TripServiceImpl implements TripService {
@@ -19,16 +18,19 @@ public class TripServiceImpl implements TripService {
     private final TripRepository tripRepository;
     private final StopRepository stopRepository;
     private final TripImageRepository tripImageRepository;
+    private final TripMemberRepository tripMemberRepository;
     private final ImageProcessorService imageProcessorService;
-    private final com.wegmarken.repository.UserRepository userRepository;
+    private final UserRepository userRepository;
     private final S3Service s3Service;
 
     public TripServiceImpl(TripRepository tripRepository, StopRepository stopRepository, 
-                           TripImageRepository tripImageRepository, ImageProcessorService imageProcessorService,
-                           com.wegmarken.repository.UserRepository userRepository, S3Service s3Service) {
+                           TripImageRepository tripImageRepository, TripMemberRepository tripMemberRepository,
+                           ImageProcessorService imageProcessorService,
+                           UserRepository userRepository, S3Service s3Service) {
         this.tripRepository = tripRepository;
         this.stopRepository = stopRepository;
         this.tripImageRepository = tripImageRepository;
+        this.tripMemberRepository = tripMemberRepository;
         this.imageProcessorService = imageProcessorService;
         this.userRepository = userRepository;
         this.s3Service = s3Service;
@@ -38,17 +40,26 @@ public class TripServiceImpl implements TripService {
     public Trip createTrip(Trip trip) {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         com.wegmarken.domain.User user = userRepository.findByUsername(username).orElseThrow();
-        trip.setUser(user);
-        return tripRepository.save(trip);
+        Trip savedTrip = tripRepository.save(trip);
+        
+        TripMember member = new TripMember(savedTrip, user);
+        tripMemberRepository.save(member);
+        
+        return savedTrip;
     }
 
     @Override
     public Trip getTrip(Long id) {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        com.wegmarken.domain.User user = userRepository.findByUsername(username).orElseThrow();
+        
         Trip trip = tripRepository.findById(id).orElseThrow(() -> new RuntimeException("Trip not found"));
-        if (!trip.getUser().getUsername().equals(username)) {
-            throw new RuntimeException("Unauthorized access to trip");
-        }
+        
+        // Check if user is a member and hasn't deleted it locally
+        tripMemberRepository.findByTripIdAndUserId(id, user.getId())
+                .filter(m -> !m.isDeletedLocally())
+                .orElseThrow(() -> new RuntimeException("Unauthorized access to trip"));
+        
         return trip;
     }
 
@@ -56,7 +67,11 @@ public class TripServiceImpl implements TripService {
     public List<Trip> getAllTrips() {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         com.wegmarken.domain.User user = userRepository.findByUsername(username).orElseThrow();
-        return tripRepository.findByUserId(user.getId());
+        
+        List<TripMember> memberships = tripMemberRepository.findByUserIdAndDeletedLocallyFalse(user.getId());
+        return memberships.stream()
+                .map(TripMember::getTrip)
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -232,5 +247,51 @@ public class TripServiceImpl implements TripService {
         }
         image.setStop(stop);
         return tripImageRepository.save(image);
+    }
+
+    @Override
+    public void deleteTrip(Long id) {
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        com.wegmarken.domain.User user = userRepository.findByUsername(username).orElseThrow();
+        
+        TripMember member = tripMemberRepository.findByTripIdAndUserId(id, user.getId())
+                .orElseThrow(() -> new RuntimeException("Membership not found"));
+        
+        member.setDeletedLocally(true);
+        tripMemberRepository.save(member);
+        
+        // Check if anyone else still has it
+        Trip trip = tripRepository.findById(id).orElseThrow();
+        boolean anyActive = trip.getMembers().stream()
+                .anyMatch(m -> !m.isDeletedLocally());
+        
+        if (!anyActive) {
+            tripRepository.delete(trip);
+        }
+    }
+
+    @Override
+    public void inviteToTrip(Long tripId, String username) {
+        Trip trip = getTrip(tripId); // Ownership check
+        com.wegmarken.domain.User invitee = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        if (tripMemberRepository.findByTripIdAndUserId(tripId, invitee.getId()).isPresent()) {
+            return; // Already a member
+        }
+        
+        TripMember member = new TripMember(trip, invitee);
+        tripMemberRepository.save(member);
+    }
+
+    @Override
+    public void deleteStop(Long tripId, Long stopId) {
+        Trip trip = getTrip(tripId);
+        Stop stop = stopRepository.findById(stopId)
+                .orElseThrow(() -> new RuntimeException("Stop not found"));
+        if (!stop.getTrip().getId().equals(trip.getId())) {
+            throw new RuntimeException("Stop does not belong to this trip");
+        }
+        stopRepository.delete(stop);
     }
 }
