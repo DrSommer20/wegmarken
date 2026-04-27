@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, TextInput, ScrollView, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, TextInput, ScrollView, KeyboardAvoidingView, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import apiClient from '../../api/apiClient';
 import { writeNfcTag } from '../../services/nfcService';
@@ -89,7 +89,7 @@ export default function TripScreen() {
 
   const pickImages = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       quality: 1,
     });
@@ -295,6 +295,21 @@ export default function TripScreen() {
           </View>
           <Text style={styles.dateText}>{selectedStop.stopDate || 'Kein Datum'}</Text>
           <Text style={styles.desc}>{selectedStop.description || 'Keine Beschreibung vorhanden.'}</Text>
+          
+          {/* Bilder anzeigen */}
+          {(() => {
+            const stopImages = trip?.images?.filter((img: any) => img.stop?.id === selectedStop.id) || [];
+            if (stopImages.length > 0) {
+              return (
+                <ScrollView horizontal style={styles.imageScroll} showsHorizontalScrollIndicator={false}>
+                  {stopImages.map((img: any) => (
+                    <Image key={img.id} source={{ uri: img.url }} style={styles.stopImage} />
+                  ))}
+                </ScrollView>
+              );
+            }
+            return null;
+          })()}
         </GlassPanel>
       )}
 
@@ -430,4 +445,8 @@ const styles = StyleSheet.create({
   },
   sortBtnDisabled: { opacity: 0.3 },
   sortBtnText: { color: 'white', fontSize: 12 },
+  
+  // Images
+  imageScroll: { marginTop: 15, flexDirection: 'row' },
+  stopImage: { width: 80, height: 80, borderRadius: 10, marginRight: 10, backgroundColor: '#333' }
 });
