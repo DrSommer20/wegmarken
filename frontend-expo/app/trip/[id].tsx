@@ -5,6 +5,7 @@ import apiClient from '../../api/apiClient';
 import { writeNfcTag } from '../../services/nfcService';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import MapComponent from '../../components/MapComponent';
 import DatePickerField from '../../components/DatePicker';
 
@@ -100,7 +101,6 @@ export default function TripScreen() {
         const formData = new FormData();
         
         if (Platform.OS === 'web') {
-          // Web handles fetch with Blob/File directly
           const promises = result.assets.map(async (asset, index) => {
             const fileName = asset.fileName || `image-${index}.jpg`;
             const res = await fetch(asset.uri);
@@ -120,13 +120,31 @@ export default function TripScreen() {
           });
         }
 
-        // Do NOT set Content-Type manually, Axios will set it with the correct boundary
-        await apiClient.post(`/trips/${id}/bulk-images`, formData);
+        // Use native fetch to avoid Axios bugs with FormData in React Native
+        const token = Platform.OS === 'web' 
+            ? localStorage.getItem('jwt_token') 
+            : await SecureStore.getItemAsync('jwt_token');
+
+        const uploadUrl = `${process.env.EXPO_PUBLIC_API_URL || 'http://dev.sopa-it.de/api'}/trips/${id}/bulk-images`;
+        
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Authorization': `Bearer ${token}`
+            // Do NOT set Content-Type, fetch sets it automatically with the correct boundary
+          }
+        });
+
+        if (!response.ok) {
+           const errText = await response.text();
+           throw new Error(`Upload failed: ${response.status} ${errText}`);
+        }
         
         Alert.alert('Erfolg', 'Bilder hochgeladen und verarbeitet!');
         fetchTrip(); // Refresh to see new stops/images
       } catch (e) {
-        console.error(e);
+        console.error('Upload Error:', e);
         Alert.alert('Fehler', 'Bilder konnten nicht hochgeladen werden.');
       }
     }
