@@ -13,6 +13,8 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    volumes:
+      - ./data:/app/data
 
   frontend:
     image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-local}/wegmarken-frontend:${IMAGE_TAG:-latest}
