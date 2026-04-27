@@ -3,6 +3,8 @@ package com.wegmarken.controller;
 import com.wegmarken.domain.User;
 import com.wegmarken.repository.UserRepository;
 import com.wegmarken.security.JwtUtil;
+import com.wegmarken.service.SubscriptionService;
+
 import lombok.Data;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -19,13 +21,16 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final SubscriptionService subscriptionService;
 
     public AuthController(AuthenticationManager authenticationManager, UserRepository userRepository,
-                          PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
+                          PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
+                          com.wegmarken.service.SubscriptionService subscriptionService) {
         this.authenticationManager = authenticationManager;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
+        this.subscriptionService = subscriptionService;
     }
 
     /**
@@ -84,13 +89,31 @@ public class AuthController {
 
     /**
      * Returns the full profile of the logged-in user.
-     * Useful for getting subscription status and preferences.
+     * We calculate the total storage limit here based on their tier + extra quota.
      */
     @GetMapping("/me")
-    public ResponseEntity<User> getCurrentUser(java.security.Principal principal) {
+    public ResponseEntity<?> getCurrentUser(java.security.Principal principal) {
         User user = userRepository.findByUsername(principal.getName())
             .orElseThrow(() -> new RuntimeException("User not found"));
-        return ResponseEntity.ok(user);
+            
+        double baseQuota = subscriptionService.getBaseQuota(user.getSubscription().getTier());
+        double totalMax = baseQuota + user.getSubscription().getExtraQuotaMb();
+
+        // We wrap the response to include the calculated total limit
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("username", user.getUsername());
+        response.put("email", user.getEmail());
+        response.put("mapPreference", user.getMapPreference());
+        
+        java.util.Map<String, Object> sub = new java.util.HashMap<>();
+        sub.put("tier", user.getSubscription().getTier());
+        sub.put("usedStorageMb", user.getSubscription().getUsedStorageMb());
+        sub.put("extraQuotaMb", user.getSubscription().getExtraQuotaMb());
+        sub.put("maxStorageMb", totalMax);
+        
+        response.put("subscription", sub);
+        
+        return ResponseEntity.ok(response);
     }
 
     /**

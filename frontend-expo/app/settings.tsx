@@ -5,11 +5,11 @@ import apiClient, { clearToken } from '../api/apiClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Storage tiers (placeholder for subscription model)
-const STORAGE_TIERS = {
-  FREE: { name: 'Free', maxMB: 500, color: '#888' },
-  STARTER: { name: 'Starter', maxMB: 5000, color: '#ff8a00' },
-  PRO: { name: 'Pro', maxMB: 50000, color: '#e52e71' },
-  UNLIMITED: { name: 'Unlimited', maxMB: Infinity, color: '#00d4aa' },
+// Travel-themed storage tiers
+const STORAGE_TIERS: any = {
+  BACKPACKER: { name: 'Backpacker', color: '#888' },
+  EXPLORER: { name: 'Explorer', color: '#ff8a00' },
+  GLOBETROTTER: { name: 'Globetrotter', color: '#e52e71' },
 };
 
 export default function SettingsScreen() {
@@ -28,9 +28,10 @@ export default function SettingsScreen() {
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
 
-  // Storage
-  const [currentTier, setCurrentTier] = useState(STORAGE_TIERS.FREE);
+  // Storage and Subscription
+  const [currentTier, setCurrentTier] = useState(STORAGE_TIERS.BACKPACKER);
   const [usedMB, setUsedMB] = useState(0.0);
+  const [maxMB, setMaxMB] = useState(500.0);
 
   useEffect(() => {
     fetchUserInfo();
@@ -65,9 +66,10 @@ export default function SettingsScreen() {
       const sub = res.data.subscription;
       if (sub) {
         setUsedMB(sub.usedStorageMb || 0);
+        setMaxMB(sub.maxStorageMb || 500);
         
         // Try to match the backend tier to our local UI tiers
-        const tierKey = sub.tier as keyof typeof STORAGE_TIERS;
+        const tierKey = sub.tier as string;
         if (STORAGE_TIERS[tierKey]) {
           setCurrentTier(STORAGE_TIERS[tierKey]);
         }
@@ -120,7 +122,7 @@ export default function SettingsScreen() {
     );
   };
 
-  const storagePercent = currentTier.maxMB === Infinity ? 0 : Math.min((usedMB / currentTier.maxMB) * 100, 100);
+  const storagePercent = maxMB === Infinity ? 0 : Math.min((usedMB / maxMB) * 100, 100);
 
   const MapTypeButton = ({ type, label, icon }: { type: 'standard' | 'satellite' | 'hybrid', label: string, icon: string }) => (
     <TouchableOpacity 
@@ -161,7 +163,7 @@ export default function SettingsScreen() {
             </View>
           </View>
           <Text style={styles.storageMax}>
-            von {currentTier.maxMB === Infinity ? '∞' : `${(currentTier.maxMB / 1000).toFixed(0)} GB`}
+            von {maxMB === Infinity ? '∞' : `${(maxMB / 1000).toFixed(1)} GB`}
           </Text>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { 
