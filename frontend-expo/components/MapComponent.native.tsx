@@ -33,6 +33,7 @@ export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerCl
         userInterfaceStyle="dark"
         mapType={mapType}
         onPress={(e) => onMapClick && onMapClick(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
+        onPoiClick={(e) => onMapClick && onMapClick(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
       >
         {showRoute && routeCoordinates.length > 1 && (
           <Polyline

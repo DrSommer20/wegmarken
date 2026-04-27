@@ -624,7 +624,7 @@ export default function TripScreen() {
       )}
 
       {/* Assign Image to Stop Modal */}
-      <Modal visible={assignImage !== null} transparent animationType="slide">
+      <Modal visible={assignImage !== null} transparent animationType="slide" onRequestClose={() => setAssignImage(null)}>
         <View style={styles.assignModalOverlay}>
           <View style={styles.assignModalContent}>
             <View style={styles.overlayHeader}>
@@ -671,8 +671,8 @@ export default function TripScreen() {
       </Modal>
 
       {/* Fullscreen Image Modal */}
-      <Modal visible={fullscreenImage !== null} transparent animationType="fade">
-        <View style={styles.fullscreenContainer}>
+      <Modal visible={fullscreenImage !== null} transparent animationType="fade" onRequestClose={() => setFullscreenImage(null)}>
+        <TouchableOpacity style={styles.fullscreenContainer} activeOpacity={1} onPress={() => setFullscreenImage(null)}>
           <TouchableOpacity style={styles.fullscreenClose} onPress={() => setFullscreenImage(null)}>
             <Text style={{ color: 'white', fontSize: 28, fontWeight: 'bold' }}>✕</Text>
           </TouchableOpacity>
@@ -683,11 +683,11 @@ export default function TripScreen() {
               resizeMode="contain"
             />
           )}
-        </View>
+        </TouchableOpacity>
       </Modal>
       
       {/* Invite Friends Modal */}
-      <Modal visible={showInviteModal} transparent animationType="slide">
+      <Modal visible={showInviteModal} transparent animationType="slide" onRequestClose={() => setShowInviteModal(false)}>
         <View style={styles.assignModalOverlay}>
           <View style={styles.assignModalContent}>
             <View style={styles.overlayHeader}>
