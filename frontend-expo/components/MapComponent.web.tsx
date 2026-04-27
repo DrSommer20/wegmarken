@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -19,6 +19,7 @@ interface MapProps {
   onMarkerClick?: (stop: any) => void;
   isEditMode?: boolean;
   onMarkerDragEnd?: (stopId: number, lat: number, lng: number) => void;
+  mapType?: 'standard' | 'satellite' | 'hybrid';
 }
 
 function MapEvents({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
@@ -30,18 +31,36 @@ function MapEvents({ onMapClick }: { onMapClick?: (lat: number, lng: number) => 
   return null;
 }
 
-export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerClick, isEditMode, onMarkerDragEnd }: MapProps) {
+const TILE_LAYERS = {
+  standard: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+  },
+  hybrid: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri, Maxar, Earthstar Geographics',
+  },
+};
+
+export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerClick, isEditMode, onMarkerDragEnd, mapType = 'standard' }: MapProps) {
   const center: [number, number] = stops.length > 0 && stops[0].latitude 
     ? [stops[0].latitude, stops[0].longitude] 
     : [51.1657, 10.4515];
+
+  const tileConfig = TILE_LAYERS[mapType] || TILE_LAYERS.standard;
+  const useDarkFilter = mapType === 'standard';
 
   return (
     <View style={styles.container}>
       <MapContainer center={center} zoom={6} style={{ height: '100%', width: '100%', zIndex: 0 }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          className="map-tiles"
+          attribution={tileConfig.attribution}
+          url={tileConfig.url}
+          className={useDarkFilter ? 'map-tiles-dark' : ''}
         />
         <MapEvents onMapClick={onMapClick} />
         
@@ -73,7 +92,7 @@ export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerCl
       </MapContainer>
       <style>
         {`
-          .map-tiles { filter: invert(100%) hue-rotate(180deg) brightness(80%) contrast(90%); }
+          .map-tiles-dark { filter: invert(100%) hue-rotate(180deg) brightness(80%) contrast(90%); }
           .leaflet-container { background: #121212; }
         `}
       </style>

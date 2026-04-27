@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
+import MapView, { Marker, MAP_TYPES } from 'react-native-maps';
 
 interface MapProps {
   stops: any[];
@@ -9,9 +9,10 @@ interface MapProps {
   onMarkerClick?: (stop: any) => void;
   isEditMode?: boolean;
   onMarkerDragEnd?: (stopId: number, lat: number, lng: number) => void;
+  mapType?: 'standard' | 'satellite' | 'hybrid';
 }
 
-export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerClick, isEditMode, onMarkerDragEnd }: MapProps) {
+export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerClick, isEditMode, onMarkerDragEnd, mapType = 'standard' }: MapProps) {
   const initialRegion = {
     latitude: stops.length > 0 && stops[0].latitude ? stops[0].latitude : 51.1657,
     longitude: stops.length > 0 && stops[0].longitude ? stops[0].longitude : 10.4515,
@@ -25,6 +26,7 @@ export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerCl
         style={styles.map} 
         initialRegion={initialRegion}
         userInterfaceStyle="dark"
+        mapType={mapType}
         onPress={(e) => onMapClick && onMapClick(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
       >
         {stops.map(stop => (

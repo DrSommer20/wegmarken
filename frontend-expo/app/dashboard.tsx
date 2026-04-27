@@ -89,8 +89,8 @@ export default function Dashboard() {
         <TouchableOpacity style={styles.primaryBtn} onPress={() => setModalVisible(true)}>
           <Text style={styles.btnText}>+ Neue Reise</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={handleLogout}>
-          <Text style={styles.btnText}>Logout</Text>
+        <TouchableOpacity style={styles.secondaryBtn} onPress={() => router.push('/settings')}>
+          <Text style={styles.btnText}>⚙️</Text>
         </TouchableOpacity>
       </View>
 

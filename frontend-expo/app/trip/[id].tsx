@@ -5,6 +5,7 @@ import apiClient from '../../api/apiClient';
 import { writeNfcTag } from '../../services/nfcService';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MapComponent from '../../components/MapComponent';
 import DatePickerField from '../../components/DatePicker';
 
@@ -51,9 +52,22 @@ export default function TripScreen() {
   // Assign Image Modal
   const [assignImage, setAssignImage] = useState<any>(null);
 
+  // Map Type
+  const [mapType, setMapType] = useState<'standard' | 'satellite' | 'hybrid'>('standard');
+
   useEffect(() => {
     fetchTrip();
+    loadMapType();
   }, [id]);
+
+  const loadMapType = async () => {
+    try {
+      const saved = Platform.OS === 'web'
+        ? localStorage.getItem('mapType')
+        : await AsyncStorage.getItem('mapType');
+      if (saved) setMapType(saved as any);
+    } catch (e) { /* ignore */ }
+  };
 
   const fetchTrip = async () => {
     try {
@@ -239,6 +253,7 @@ export default function TripScreen() {
         onMapClick={handleMapClick}
         tempMarker={tempMarker}
         isEditMode={mode === 'edit'}
+        mapType={mapType}
         onMarkerDragEnd={async (stopId: any, lat: any, lng: any) => {
           const stop = trip.stops.find((s: any) => s.id === stopId);
           if (stop) {

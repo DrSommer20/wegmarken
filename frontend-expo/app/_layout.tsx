@@ -19,6 +19,7 @@ export default function Layout() {
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="dashboard" options={{ title: 'Meine Reisen', headerBackVisible: false }} />
+        <Stack.Screen name="settings" options={{ title: 'Einstellungen' }} />
         <Stack.Screen name="trip/[id]" options={{ title: 'Wegmarken' }} />
       </Stack>
     </>
