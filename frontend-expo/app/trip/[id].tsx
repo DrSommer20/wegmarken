@@ -28,7 +28,7 @@ export default function TripScreen() {
   };
 
   const handleNfc = () => {
-    const url = `https://dev.sommer-home.com/trip/${id}`;
+    const url = `https://dev.sopa-it.com/trip/${id}`;
     writeNfcTag(url);
   };
 
