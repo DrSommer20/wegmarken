@@ -184,7 +184,7 @@ export default function TripScreen() {
         onMapClick={handleMapClick}
         tempMarker={tempMarker}
         isEditMode={mode === 'edit'}
-        onMarkerDragEnd={async (stopId, lat, lng) => {
+        onMarkerDragEnd={async (stopId: any, lat: any, lng: any) => {
           const stop = trip.stops.find((s: any) => s.id === stopId);
           if (stop) {
             try {
@@ -199,7 +199,7 @@ export default function TripScreen() {
             }
           }
         }}
-        onMarkerClick={(stop) => {
+        onMarkerClick={(stop: any) => {
           if (mode === 'view') {
             setSelectedStop(stop);
             setTempMarker(null);
