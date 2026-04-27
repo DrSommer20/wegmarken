@@ -19,6 +19,9 @@ public class Trip {
     private String name;
     private String description;
     private String country;
+    
+    private java.time.LocalDate startDate;
+    private java.time.LocalDate endDate;
 
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Stop> stops = new ArrayList<>();

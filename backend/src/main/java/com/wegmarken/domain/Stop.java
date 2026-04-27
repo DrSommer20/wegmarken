@@ -15,6 +15,7 @@ public class Stop {
 
     private String name;
     private String description;
+    private java.time.LocalDate stopDate;
     
     private Double latitude;
     private Double longitude;
