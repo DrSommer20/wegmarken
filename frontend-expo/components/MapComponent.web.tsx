@@ -46,7 +46,7 @@ export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerCl
         <MapEvents onMapClick={onMapClick} />
         
         {stops.map(stop => (
-          stop.latitude && stop.longitude && (
+          (stop.latitude != null && stop.longitude != null) ? (
             <Marker 
               key={stop.id} 
               position={[stop.latitude, stop.longitude]}
@@ -62,14 +62,14 @@ export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerCl
             >
               <Popup>{stop.name}</Popup>
             </Marker>
-          )
+          ) : null
         ))}
 
-        {tempMarker && (
+        {tempMarker ? (
           <Marker position={[tempMarker.latitude, tempMarker.longitude]} opacity={0.6}>
             <Popup>Neuer Stopp</Popup>
           </Marker>
-        )}
+        ) : null}
       </MapContainer>
       <style>
         {`

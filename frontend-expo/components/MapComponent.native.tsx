@@ -28,7 +28,7 @@ export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerCl
         onPress={(e) => onMapClick && onMapClick(e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
       >
         {stops.map(stop => (
-          stop.latitude && stop.longitude && (
+          (stop.latitude != null && stop.longitude != null) ? (
             <Marker
               key={stop.id}
               coordinate={{ latitude: stop.latitude, longitude: stop.longitude }}
@@ -38,17 +38,17 @@ export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerCl
               draggable={isEditMode}
               onDragEnd={(e) => onMarkerDragEnd && onMarkerDragEnd(stop.id, e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
             />
-          )
+          ) : null
         ))}
 
-        {tempMarker && (
+        {tempMarker ? (
           <Marker
             coordinate={{ latitude: tempMarker.latitude, longitude: tempMarker.longitude }}
             pinColor="blue"
             title="Neuer Stopp"
             opacity={0.6}
           />
-        )}
+        ) : null}
       </MapView>
     </View>
   );
