@@ -98,34 +98,30 @@ export default function TripScreen() {
       Alert.alert('Upload', `${result.assets.length} Bilder werden hochgeladen...`);
       try {
         const formData = new FormData();
-        result.assets.forEach((asset, index) => {
-          // React Native needs name, type, uri
-          const fileName = asset.fileName || `image-${index}.jpg`;
-          const fileType = asset.mimeType || 'image/jpeg';
-          
-          if (Platform.OS === 'web') {
-             // Web handles fetch with Blob/File directly
-             // Need to fetch blob from uri on web
-             fetch(asset.uri)
-              .then(res => res.blob())
-              .then(blob => {
-                 formData.append('files', blob, fileName);
-              });
-          } else {
-             formData.append('files', {
-               uri: asset.uri,
-               name: fileName,
-               type: fileType,
-             } as any);
-          }
-        });
+        
+        if (Platform.OS === 'web') {
+          // Web handles fetch with Blob/File directly
+          const promises = result.assets.map(async (asset, index) => {
+            const fileName = asset.fileName || `image-${index}.jpg`;
+            const res = await fetch(asset.uri);
+            const blob = await res.blob();
+            formData.append('files', blob, fileName);
+          });
+          await Promise.all(promises);
+        } else {
+          result.assets.forEach((asset, index) => {
+            const fileName = asset.fileName || `image-${index}.jpg`;
+            const fileType = asset.mimeType || 'image/jpeg';
+            formData.append('files', {
+              uri: asset.uri,
+              name: fileName,
+              type: fileType,
+            } as any);
+          });
+        }
 
-        // Wait a small bit for web blobs to append
-        if (Platform.OS === 'web') await new Promise(r => setTimeout(r, 500));
-
-        await apiClient.post(`/trips/${id}/bulk-images`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        // Do NOT set Content-Type manually, Axios will set it with the correct boundary
+        await apiClient.post(`/trips/${id}/bulk-images`, formData);
         
         Alert.alert('Erfolg', 'Bilder hochgeladen und verarbeitet!');
         fetchTrip(); // Refresh to see new stops/images
