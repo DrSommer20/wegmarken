@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, TextInput, ScrollView, KeyboardAvoidingView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, TextInput, ScrollView, KeyboardAvoidingView, Image, Modal, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import apiClient from '../../api/apiClient';
 import { writeNfcTag } from '../../services/nfcService';
@@ -7,6 +7,8 @@ import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
 import MapComponent from '../../components/MapComponent';
 import DatePickerField from '../../components/DatePicker';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // GlassPanel OUTSIDE the main component so React doesn't unmount/remount it on every state change
 const GlassPanel = ({ children, style }: any) => {
@@ -30,11 +32,21 @@ export default function TripScreen() {
   const [selectedStop, setSelectedStop] = useState<any>(null);
   const [tempMarker, setTempMarker] = useState<{ latitude: number, longitude: number } | null>(null);
   const [showStopList, setShowStopList] = useState(false);
+  const [showUnassigned, setShowUnassigned] = useState(false);
   
   // New Stop State
   const [stopName, setStopName] = useState('');
   const [stopDesc, setStopDesc] = useState('');
   const [stopDate, setStopDate] = useState('');
+
+  // Edit Stop State
+  const [editingStop, setEditingStop] = useState<any>(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editDate, setEditDate] = useState('');
+
+  // Fullscreen Image
+  const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTrip();
@@ -55,6 +67,7 @@ export default function TripScreen() {
     if (mode === 'edit') {
       setTempMarker({ latitude: lat, longitude: lng });
       setSelectedStop(null);
+      setEditingStop(null);
     }
   }, [mode]);
 
@@ -79,6 +92,30 @@ export default function TripScreen() {
       fetchTrip();
     } catch (e) {
       Alert.alert('Fehler', 'Stop konnte nicht gespeichert werden');
+    }
+  };
+
+  const startEditStop = (stop: any) => {
+    setEditingStop(stop);
+    setEditName(stop.name || '');
+    setEditDesc(stop.description || '');
+    setEditDate(stop.stopDate || '');
+    setSelectedStop(null);
+  };
+
+  const saveEditStop = async () => {
+    if (!editingStop) return;
+    try {
+      await apiClient.put(`/trips/${id}/stops/${editingStop.id}`, {
+        ...editingStop,
+        name: editName,
+        description: editDesc,
+        stopDate: editDate || null,
+      });
+      setEditingStop(null);
+      fetchTrip();
+    } catch (e) {
+      Alert.alert('Fehler', 'Änderungen konnten nicht gespeichert werden');
     }
   };
 
@@ -123,7 +160,7 @@ export default function TripScreen() {
         
         const response = await apiClient.post(`/trips/${id}/bulk-images`, formData, {
           headers: Platform.OS !== 'web' ? { 'Content-Type': 'multipart/form-data' } : {},
-          timeout: 120000, // 2 min timeout for large uploads
+          timeout: 120000,
         });
         
         console.log('Upload response:', response.status);
@@ -142,7 +179,6 @@ export default function TripScreen() {
     if (!trip?.stops) return [];
     const stops = [...trip.stops];
     if (trip.tripType === 'ROADTRIP') {
-      // For roadtrips: sort by sortOrder first, then by date
       stops.sort((a: any, b: any) => {
         if (a.sortOrder !== null && b.sortOrder !== null && a.sortOrder !== b.sortOrder) {
           return a.sortOrder - b.sortOrder;
@@ -154,12 +190,16 @@ export default function TripScreen() {
     return stops;
   };
 
+  const getUnassignedImages = () => {
+    if (!trip?.images) return [];
+    return trip.images.filter((img: any) => !img.stop);
+  };
+
   const moveStop = async (index: number, direction: 'up' | 'down') => {
     const sorted = getSortedStops();
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= sorted.length) return;
     
-    // Swap sortOrder values
     const stopA = sorted[index];
     const stopB = sorted[targetIndex];
     
@@ -176,6 +216,7 @@ export default function TripScreen() {
 
   const sortedStops = getSortedStops();
   const isRoadtrip = trip.tripType === 'ROADTRIP';
+  const unassignedImages = getUnassignedImages();
 
   return (
     <View style={styles.container}>
@@ -204,6 +245,8 @@ export default function TripScreen() {
             setSelectedStop(stop);
             setTempMarker(null);
             setShowStopList(false);
+            setEditingStop(null);
+            setShowUnassigned(false);
           }
         }}
       />
@@ -213,10 +256,23 @@ export default function TripScreen() {
         <TouchableOpacity style={styles.controlBtn} onPress={pickImages}>
           <Text style={styles.controlBtnText}>📸 Upload</Text>
         </TouchableOpacity>
+        {unassignedImages.length > 0 && (
+          <TouchableOpacity style={[styles.controlBtn, { backgroundColor: 'rgba(229,46,113,0.8)' }]} onPress={() => {
+            setShowUnassigned(!showUnassigned);
+            setSelectedStop(null);
+            setEditingStop(null);
+            setTempMarker(null);
+            setShowStopList(false);
+          }}>
+            <Text style={styles.controlBtnText}>📎 {unassignedImages.length}</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.controlBtn} onPress={() => {
           setShowStopList(!showStopList);
           setSelectedStop(null);
           setTempMarker(null);
+          setEditingStop(null);
+          setShowUnassigned(false);
         }}>
           <Text style={styles.controlBtnText}>📋 Stops</Text>
         </TouchableOpacity>
@@ -225,6 +281,8 @@ export default function TripScreen() {
           setShowStopList(false);
           setSelectedStop(null);
           setTempMarker(null);
+          setEditingStop(null);
+          setShowUnassigned(false);
         }}>
           <Text style={styles.controlBtnText}>{mode === 'view' ? '✏️ Bearbeiten' : '👁️ Ansicht'}</Text>
         </TouchableOpacity>
@@ -232,6 +290,31 @@ export default function TripScreen() {
           <Text style={styles.controlBtnText}>🧲</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Unassigned Images Panel */}
+      {showUnassigned && unassignedImages.length > 0 && (
+        <GlassPanel style={styles.overlay}>
+          <View style={styles.overlayHeader}>
+            <Text style={styles.overlayTitle}>📎 Bilder zuordnen ({unassignedImages.length})</Text>
+            <TouchableOpacity onPress={() => setShowUnassigned(false)}>
+              <Text style={{color: 'white', fontSize: 20}}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={{ color: '#aaa', fontSize: 12, marginBottom: 10 }}>
+            Diese Bilder konnten keinem Stop zugeordnet werden. Tippe auf ein Bild um es einem Stop zuzuweisen.
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {unassignedImages.map((img: any) => (
+              <TouchableOpacity key={img.id} onPress={() => {
+                // TODO: Show stop picker to assign image
+                setFullscreenImage(img.url);
+              }}>
+                <Image source={{ uri: img.url }} style={styles.stopImage} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </GlassPanel>
+      )}
 
       {/* Stop List Panel */}
       {showStopList && (
@@ -286,13 +369,18 @@ export default function TripScreen() {
       )}
 
       {/* Selected Stop Details (View Mode) */}
-      {mode === 'view' && selectedStop && !showStopList && (
+      {mode === 'view' && selectedStop && !showStopList && !editingStop && !showUnassigned && (
         <GlassPanel style={styles.overlay}>
           <View style={styles.overlayHeader}>
             <Text style={styles.title}>{selectedStop.name}</Text>
-            <TouchableOpacity onPress={() => setSelectedStop(null)}>
-              <Text style={{color: 'white', fontSize: 20}}>✕</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity onPress={() => startEditStop(selectedStop)}>
+                <Text style={{color: '#ff8a00', fontSize: 20}}>✏️</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setSelectedStop(null)}>
+                <Text style={{color: 'white', fontSize: 20}}>✕</Text>
+              </TouchableOpacity>
+            </View>
           </View>
           <Text style={styles.dateText}>{selectedStop.stopDate || 'Kein Datum'}</Text>
           <Text style={styles.desc}>{selectedStop.description || 'Keine Beschreibung vorhanden.'}</Text>
@@ -304,7 +392,9 @@ export default function TripScreen() {
               return (
                 <ScrollView horizontal style={styles.imageScroll} showsHorizontalScrollIndicator={false}>
                   {stopImages.map((img: any) => (
-                    <Image key={img.id} source={{ uri: img.url }} style={styles.stopImage} />
+                    <TouchableOpacity key={img.id} onPress={() => setFullscreenImage(img.url)}>
+                      <Image source={{ uri: img.url }} style={styles.stopImage} />
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               );
@@ -314,8 +404,48 @@ export default function TripScreen() {
         </GlassPanel>
       )}
 
+      {/* Edit Stop Form */}
+      {editingStop && !showStopList && !showUnassigned && (
+        <KeyboardAvoidingView 
+          style={styles.formWrapper}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={100}
+        >
+          <GlassPanel style={styles.overlayForm}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.overlayTitle}>Stop bearbeiten</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Name des Stopps"
+                placeholderTextColor="#888"
+                value={editName}
+                onChangeText={setEditName}
+                autoCapitalize="sentences"
+              />
+              <TextInput
+                style={[styles.input, { minHeight: 50, textAlignVertical: 'top' }]}
+                placeholder="Beschreibung (optional)"
+                placeholderTextColor="#888"
+                value={editDesc}
+                onChangeText={setEditDesc}
+                multiline
+              />
+              <DatePickerField value={editDate} onChange={setEditDate} placeholder="Datum wählen" />
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setEditingStop(null)}>
+                  <Text style={styles.btnText}>Abbrechen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.confirmBtn]} onPress={saveEditStop}>
+                  <Text style={styles.btnText}>Speichern</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </GlassPanel>
+        </KeyboardAvoidingView>
+      )}
+
       {/* Add Stop Form (Edit Mode) */}
-      {mode === 'edit' && tempMarker && !showStopList && (
+      {mode === 'edit' && tempMarker && !showStopList && !editingStop && !showUnassigned && (
         <KeyboardAvoidingView 
           style={styles.formWrapper}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -355,7 +485,7 @@ export default function TripScreen() {
       )}
 
       {/* Default Overlay (when nothing selected) */}
-      {!selectedStop && !tempMarker && !showStopList && (
+      {!selectedStop && !tempMarker && !showStopList && !editingStop && !showUnassigned && (
         <GlassPanel style={styles.overlay}>
           <View style={styles.overlayHeader}>
             <View style={{ flex: 1 }}>
@@ -372,8 +502,31 @@ export default function TripScreen() {
             <Text style={styles.dateText}>{trip.startDate} → {trip.endDate}</Text>
           )}
           <Text style={styles.stopCount}>{sortedStops.length} Stops</Text>
+          {unassignedImages.length > 0 && (
+            <TouchableOpacity onPress={() => setShowUnassigned(true)} style={{ marginTop: 8 }}>
+              <Text style={{ color: '#e52e71', fontSize: 12, fontWeight: 'bold' }}>
+                📎 {unassignedImages.length} Bilder ohne Zuordnung
+              </Text>
+            </TouchableOpacity>
+          )}
         </GlassPanel>
       )}
+
+      {/* Fullscreen Image Modal */}
+      <Modal visible={fullscreenImage !== null} transparent animationType="fade">
+        <View style={styles.fullscreenContainer}>
+          <TouchableOpacity style={styles.fullscreenClose} onPress={() => setFullscreenImage(null)}>
+            <Text style={{ color: 'white', fontSize: 28, fontWeight: 'bold' }}>✕</Text>
+          </TouchableOpacity>
+          {fullscreenImage && (
+            <Image
+              source={{ uri: fullscreenImage }}
+              style={styles.fullscreenImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -449,5 +602,20 @@ const styles = StyleSheet.create({
   
   // Images
   imageScroll: { marginTop: 15, flexDirection: 'row' },
-  stopImage: { width: 80, height: 80, borderRadius: 10, marginRight: 10, backgroundColor: '#333' }
+  stopImage: { width: 80, height: 80, borderRadius: 10, marginRight: 10, backgroundColor: '#333' },
+
+  // Fullscreen
+  fullscreenContainer: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.95)',
+    justifyContent: 'center', alignItems: 'center'
+  },
+  fullscreenClose: {
+    position: 'absolute', top: 50, right: 20, zIndex: 10,
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center', justifyContent: 'center'
+  },
+  fullscreenImage: {
+    width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.8
+  },
 });

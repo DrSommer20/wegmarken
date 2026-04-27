@@ -130,9 +130,16 @@ public class TripServiceImpl implements TripService {
             meta.file = file;
             Map<String, Double> coords = imageProcessorService.extractGpsCoordinates(file);
             if (coords.containsKey("latitude")) {
-                meta.lat = coords.get("latitude");
-                meta.lng = coords.get("longitude");
-                gpsImages.add(meta);
+                double lat = coords.get("latitude");
+                double lng = coords.get("longitude");
+                // Treat 0,0 (null island) as invalid - almost certainly means no real GPS data
+                if (Math.abs(lat) < 0.001 && Math.abs(lng) < 0.001) {
+                    noGpsImages.add(meta);
+                } else {
+                    meta.lat = lat;
+                    meta.lng = lng;
+                    gpsImages.add(meta);
+                }
             } else {
                 noGpsImages.add(meta);
             }
