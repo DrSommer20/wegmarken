@@ -5,7 +5,6 @@ import apiClient from '../../api/apiClient';
 import { writeNfcTag } from '../../services/nfcService';
 import { BlurView } from 'expo-blur';
 import * as ImagePicker from 'expo-image-picker';
-import * as SecureStore from 'expo-secure-store';
 import MapComponent from '../../components/MapComponent';
 import DatePickerField from '../../components/DatePicker';
 
@@ -92,7 +91,7 @@ export default function TripScreen() {
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
-      quality: 1,
+      quality: 0.8,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
@@ -120,32 +119,20 @@ export default function TripScreen() {
           });
         }
 
-        // Use native fetch to avoid Axios bugs with FormData in React Native
-        const token = Platform.OS === 'web' 
-            ? localStorage.getItem('jwt_token') 
-            : await SecureStore.getItemAsync('jwt_token');
-
-        const uploadUrl = `${process.env.EXPO_PUBLIC_API_URL || 'http://dev.sopa-it.de/api'}/trips/${id}/bulk-images`;
+        console.log('Uploading to:', `${apiClient.defaults.baseURL}/trips/${id}/bulk-images`);
         
-        const response = await fetch(uploadUrl, {
-          method: 'POST',
-          body: formData,
-          headers: {
-            'Authorization': `Bearer ${token}`
-            // Do NOT set Content-Type, fetch sets it automatically with the correct boundary
-          }
+        const response = await apiClient.post(`/trips/${id}/bulk-images`, formData, {
+          headers: Platform.OS !== 'web' ? { 'Content-Type': 'multipart/form-data' } : {},
+          timeout: 120000, // 2 min timeout for large uploads
         });
-
-        if (!response.ok) {
-           const errText = await response.text();
-           throw new Error(`Upload failed: ${response.status} ${errText}`);
-        }
         
+        console.log('Upload response:', response.status);
         Alert.alert('Erfolg', 'Bilder hochgeladen und verarbeitet!');
-        fetchTrip(); // Refresh to see new stops/images
-      } catch (e) {
-        console.error('Upload Error:', e);
-        Alert.alert('Fehler', 'Bilder konnten nicht hochgeladen werden.');
+        fetchTrip();
+      } catch (e: any) {
+        console.error('Upload Error:', e?.response?.status, e?.response?.data, e?.message);
+        const statusInfo = e?.response?.status ? ` (Status: ${e.response.status})` : '';
+        Alert.alert('Fehler', `Upload fehlgeschlagen${statusInfo}: ${e?.message}`);
       }
     }
   };

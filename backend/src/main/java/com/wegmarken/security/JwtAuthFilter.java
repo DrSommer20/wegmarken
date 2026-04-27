@@ -33,6 +33,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         final String jwt;
         final String username;
 
+        // Debug logging for upload issues
+        if (request.getRequestURI().contains("bulk-images")) {
+            System.out.println("[JwtFilter] bulk-images request: " + request.getMethod() + " " + request.getRequestURI());
+            System.out.println("[JwtFilter] Auth header present: " + (authHeader != null));
+            System.out.println("[JwtFilter] Content-Type: " + request.getContentType());
+        }
+
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -55,7 +62,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            // Token invalid
+            System.out.println("[JwtFilter] Token validation failed: " + e.getMessage());
         }
         filterChain.doFilter(request, response);
     }

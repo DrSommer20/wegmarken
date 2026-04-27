@@ -42,6 +42,20 @@ public class SecurityConfig {
                 .requestMatchers("/h2-console/**").permitAll()
                 .anyRequest().authenticated()
             )
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    System.out.println("AUTH FAILED for: " + request.getMethod() + " " + request.getRequestURI());
+                    System.out.println("Auth header: " + request.getHeader("Authorization"));
+                    System.out.println("Content-Type: " + request.getContentType());
+                    System.out.println("Exception: " + authException.getMessage());
+                    response.sendError(401, "Unauthorized: " + authException.getMessage());
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    System.out.println("ACCESS DENIED for: " + request.getMethod() + " " + request.getRequestURI());
+                    System.out.println("Exception: " + accessDeniedException.getMessage());
+                    response.sendError(403, "Forbidden: " + accessDeniedException.getMessage());
+                })
+            )
             .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -49,6 +63,11 @@ public class SecurityConfig {
         // For H2 console
         http.headers(headers -> headers.frameOptions(frameOptions -> frameOptions.disable()));
         return http.build();
+    }
+
+    @Bean
+    public org.springframework.web.multipart.support.MultipartFilter multipartFilter() {
+        return new org.springframework.web.multipart.support.MultipartFilter();
     }
 
     @Bean
