@@ -53,4 +53,11 @@ public class TripController {
             @RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(tripService.addImage(tripId, stopId, file));
     }
+
+    @PostMapping("/{tripId}/bulk-images")
+    public ResponseEntity<List<TripImage>> uploadImagesBulk(
+            @PathVariable Long tripId,
+            @RequestParam("files") MultipartFile[] files) {
+        return ResponseEntity.ok(tripService.bulkAddImages(tripId, files));
+    }
 }

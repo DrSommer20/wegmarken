@@ -17,6 +17,8 @@ interface MapProps {
   onMapClick?: (lat: number, lng: number) => void;
   tempMarker?: { latitude: number, longitude: number } | null;
   onMarkerClick?: (stop: any) => void;
+  isEditMode?: boolean;
+  onMarkerDragEnd?: (stopId: number, lat: number, lng: number) => void;
 }
 
 function MapEvents({ onMapClick }: { onMapClick?: (lat: number, lng: number) => void }) {
@@ -28,7 +30,7 @@ function MapEvents({ onMapClick }: { onMapClick?: (lat: number, lng: number) => 
   return null;
 }
 
-export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerClick }: MapProps) {
+export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerClick, isEditMode, onMarkerDragEnd }: MapProps) {
   const center: [number, number] = stops.length > 0 && stops[0].latitude 
     ? [stops[0].latitude, stops[0].longitude] 
     : [51.1657, 10.4515];
@@ -48,8 +50,14 @@ export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerCl
             <Marker 
               key={stop.id} 
               position={[stop.latitude, stop.longitude]}
+              draggable={isEditMode}
               eventHandlers={{
                 click: () => onMarkerClick && onMarkerClick(stop),
+                dragend: (e) => {
+                  const marker = e.target;
+                  const position = marker.getLatLng();
+                  if (onMarkerDragEnd) onMarkerDragEnd(stop.id, position.lat, position.lng);
+                }
               }}
             >
               <Popup>{stop.name}</Popup>

@@ -21,15 +21,17 @@ public class TripServiceImpl implements TripService {
     private final TripImageRepository tripImageRepository;
     private final ImageProcessorService imageProcessorService;
     private final com.wegmarken.repository.UserRepository userRepository;
+    private final S3Service s3Service;
 
     public TripServiceImpl(TripRepository tripRepository, StopRepository stopRepository, 
                            TripImageRepository tripImageRepository, ImageProcessorService imageProcessorService,
-                           com.wegmarken.repository.UserRepository userRepository) {
+                           com.wegmarken.repository.UserRepository userRepository, S3Service s3Service) {
         this.tripRepository = tripRepository;
         this.stopRepository = stopRepository;
         this.tripImageRepository = tripImageRepository;
         this.imageProcessorService = imageProcessorService;
         this.userRepository = userRepository;
+        this.s3Service = s3Service;
     }
 
     @Override
@@ -90,27 +92,118 @@ public class TripServiceImpl implements TripService {
         }
 
         Map<String, Double> coords = imageProcessorService.extractGpsCoordinates(file);
+        String s3Url = s3Service.uploadFile(file);
         
         TripImage image = new TripImage();
         image.setTrip(trip);
         image.setStop(stop);
-        
-        // Mocking saving the file locally or to S3. For prototype, we could just convert to Base64 or save in a local dir.
-        // Let's assume we save to a public folder and create a URL
-        String filename = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
-        // In a real scenario we save it. Here we just set a mock URL
-        image.setFileName(filename);
-        image.setUrl("/images/" + filename);
+        image.setFileName(file.getOriginalFilename());
+        image.setUrl(s3Url);
 
         if (coords.containsKey("latitude")) {
             image.setLatitude(coords.get("latitude"));
             image.setLongitude(coords.get("longitude"));
         } else if (stop != null && stop.getLatitude() != null) {
-            // Fallback to stop coordinates
             image.setLatitude(stop.getLatitude());
             image.setLongitude(stop.getLongitude());
         }
 
         return tripImageRepository.save(image);
+    }
+
+    @Override
+    public List<TripImage> bulkAddImages(Long tripId, MultipartFile[] files) {
+        Trip trip = getTrip(tripId);
+        List<TripImage> savedImages = new java.util.ArrayList<>();
+        
+        class ImageMeta {
+            MultipartFile file;
+            Double lat;
+            Double lng;
+        }
+        
+        List<ImageMeta> gpsImages = new java.util.ArrayList<>();
+        List<ImageMeta> noGpsImages = new java.util.ArrayList<>();
+
+        for (MultipartFile file : files) {
+            ImageMeta meta = new ImageMeta();
+            meta.file = file;
+            Map<String, Double> coords = imageProcessorService.extractGpsCoordinates(file);
+            if (coords.containsKey("latitude")) {
+                meta.lat = coords.get("latitude");
+                meta.lng = coords.get("longitude");
+                gpsImages.add(meta);
+            } else {
+                noGpsImages.add(meta);
+            }
+        }
+
+        // Clustering: ~2km = ~0.018 degrees
+        double clusterThreshold = 0.018;
+        List<List<ImageMeta>> clusters = new java.util.ArrayList<>();
+        
+        for (ImageMeta img : gpsImages) {
+            boolean added = false;
+            for (List<ImageMeta> cluster : clusters) {
+                ImageMeta first = cluster.get(0);
+                double dLat = img.lat - first.lat;
+                double dLng = img.lng - first.lng;
+                double dist = Math.sqrt(dLat * dLat + dLng * dLng);
+                if (dist <= clusterThreshold) {
+                    cluster.add(img);
+                    added = true;
+                    break;
+                }
+            }
+            if (!added) {
+                List<ImageMeta> newCluster = new java.util.ArrayList<>();
+                newCluster.add(img);
+                clusters.add(newCluster);
+            }
+        }
+
+        // Process clusters
+        int nextSortOrder = trip.getStops() != null ? trip.getStops().size() : 0;
+        
+        for (List<ImageMeta> cluster : clusters) {
+            // Create stop for cluster
+            ImageMeta center = cluster.get(0);
+            String cityName = imageProcessorService.getCityFromCoordinates(center.lat, center.lng);
+            
+            Stop newStop = new Stop();
+            newStop.setTrip(trip);
+            newStop.setName(cityName);
+            newStop.setLatitude(center.lat);
+            newStop.setLongitude(center.lng);
+            newStop.setSortOrder(nextSortOrder++);
+            // Use current date for stop date (could be extracted from EXIF but keep it simple for now)
+            newStop.setStopDate(java.time.LocalDate.now());
+            
+            newStop = stopRepository.save(newStop);
+
+            for (ImageMeta img : cluster) {
+                String s3Url = s3Service.uploadFile(img.file);
+                TripImage ti = new TripImage();
+                ti.setTrip(trip);
+                ti.setStop(newStop);
+                ti.setLatitude(img.lat);
+                ti.setLongitude(img.lng);
+                ti.setFileName(img.file.getOriginalFilename());
+                ti.setUrl(s3Url);
+                savedImages.add(tripImageRepository.save(ti));
+            }
+        }
+
+        // Process no GPS images
+        for (ImageMeta img : noGpsImages) {
+            String s3Url = s3Service.uploadFile(img.file);
+            TripImage ti = new TripImage();
+            ti.setTrip(trip);
+            ti.setFileName(img.file.getOriginalFilename());
+            ti.setUrl(s3Url);
+            savedImages.add(tripImageRepository.save(ti));
+        }
+
+        return savedImages;
     }
 }

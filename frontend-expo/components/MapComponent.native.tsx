@@ -7,9 +7,11 @@ interface MapProps {
   onMapClick?: (lat: number, lng: number) => void;
   tempMarker?: { latitude: number, longitude: number } | null;
   onMarkerClick?: (stop: any) => void;
+  isEditMode?: boolean;
+  onMarkerDragEnd?: (stopId: number, lat: number, lng: number) => void;
 }
 
-export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerClick }: MapProps) {
+export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerClick, isEditMode, onMarkerDragEnd }: MapProps) {
   const initialRegion = {
     latitude: stops.length > 0 && stops[0].latitude ? stops[0].latitude : 51.1657,
     longitude: stops.length > 0 && stops[0].longitude ? stops[0].longitude : 10.4515,
@@ -33,6 +35,8 @@ export default function MapComponent({ stops, onMapClick, tempMarker, onMarkerCl
               title={stop.name}
               description={stop.description}
               onPress={() => onMarkerClick && onMarkerClick(stop)}
+              draggable={isEditMode}
+              onDragEnd={(e) => onMarkerDragEnd && onMarkerDragEnd(stop.id, e.nativeEvent.coordinate.latitude, e.nativeEvent.coordinate.longitude)}
             />
           )
         ))}

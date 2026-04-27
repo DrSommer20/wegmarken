@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import apiClient from '../../api/apiClient';
 import { writeNfcTag } from '../../services/nfcService';
 import { BlurView } from 'expo-blur';
+import * as ImagePicker from 'expo-image-picker';
 import MapComponent from '../../components/MapComponent';
 import DatePickerField from '../../components/DatePicker';
 
@@ -86,6 +87,55 @@ export default function TripScreen() {
     writeNfcTag(url);
   };
 
+  const pickImages = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsMultipleSelection: true,
+      quality: 1,
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      Alert.alert('Upload', `${result.assets.length} Bilder werden hochgeladen...`);
+      try {
+        const formData = new FormData();
+        result.assets.forEach((asset, index) => {
+          // React Native needs name, type, uri
+          const fileName = asset.fileName || `image-${index}.jpg`;
+          const fileType = asset.mimeType || 'image/jpeg';
+          
+          if (Platform.OS === 'web') {
+             // Web handles fetch with Blob/File directly
+             // Need to fetch blob from uri on web
+             fetch(asset.uri)
+              .then(res => res.blob())
+              .then(blob => {
+                 formData.append('files', blob, fileName);
+              });
+          } else {
+             formData.append('files', {
+               uri: asset.uri,
+               name: fileName,
+               type: fileType,
+             } as any);
+          }
+        });
+
+        // Wait a small bit for web blobs to append
+        if (Platform.OS === 'web') await new Promise(r => setTimeout(r, 500));
+
+        await apiClient.post(`/trips/${id}/bulk-images`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        
+        Alert.alert('Erfolg', 'Bilder hochgeladen und verarbeitet!');
+        fetchTrip(); // Refresh to see new stops/images
+      } catch (e) {
+        console.error(e);
+        Alert.alert('Fehler', 'Bilder konnten nicht hochgeladen werden.');
+      }
+    }
+  };
+
   // Get sorted stops for display
   const getSortedStops = () => {
     if (!trip?.stops) return [];
@@ -132,6 +182,22 @@ export default function TripScreen() {
         stops={sortedStops} 
         onMapClick={handleMapClick}
         tempMarker={tempMarker}
+        isEditMode={mode === 'edit'}
+        onMarkerDragEnd={async (stopId, lat, lng) => {
+          const stop = trip.stops.find((s: any) => s.id === stopId);
+          if (stop) {
+            try {
+              await apiClient.put(`/trips/${id}/stops/${stopId}`, {
+                ...stop,
+                latitude: lat,
+                longitude: lng
+              });
+              fetchTrip();
+            } catch(e) {
+              Alert.alert('Fehler', 'Stop-Position konnte nicht gespeichert werden');
+            }
+          }
+        }}
         onMarkerClick={(stop) => {
           if (mode === 'view') {
             setSelectedStop(stop);
@@ -143,6 +209,9 @@ export default function TripScreen() {
       
       {/* Top Buttons */}
       <View style={styles.topControls}>
+        <TouchableOpacity style={styles.controlBtn} onPress={pickImages}>
+          <Text style={styles.controlBtnText}>📸 Upload</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.controlBtn} onPress={() => {
           setShowStopList(!showStopList);
           setSelectedStop(null);

@@ -16,4 +16,6 @@ public interface TripService {
     Stop updateStop(Long tripId, Long stopId, Stop stop);
     
     TripImage addImage(Long tripId, Long stopId, MultipartFile file);
+    
+    List<TripImage> bulkAddImages(Long tripId, MultipartFile[] files);
 }
