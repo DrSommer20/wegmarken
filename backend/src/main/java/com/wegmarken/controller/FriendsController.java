@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/friends")
@@ -19,11 +20,19 @@ public class FriendsController {
         this.userRepository = userRepository;
     }
 
+    /**
+     * Returns a safe list of friends (only id + username, no password/email/etc).
+     */
     @GetMapping
-    public ResponseEntity<List<User>> getFriends() {
+    public ResponseEntity<List<Map<String, Object>>> getFriends() {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         User user = userRepository.findByUsername(username).orElseThrow();
-        return ResponseEntity.ok(user.getFriends());
+        
+        List<Map<String, Object>> safeFriends = user.getFriends().stream()
+                .map(f -> Map.<String, Object>of("id", f.getId(), "username", f.getUsername()))
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(safeFriends);
     }
 
     @PostMapping("/add")

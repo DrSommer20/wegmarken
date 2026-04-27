@@ -133,6 +133,7 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
+    @SuppressWarnings("null")
     @DeleteMapping("/account")
     public ResponseEntity<?> deleteAccount(java.security.Principal principal) {
         User user = userRepository.findByUsername(principal.getName())

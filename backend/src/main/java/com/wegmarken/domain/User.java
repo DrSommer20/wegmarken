@@ -35,6 +35,7 @@ public class User {
     @JoinTable(name = "user_friends",
         joinColumns = @JoinColumn(name = "user_id"),
         inverseJoinColumns = @JoinColumn(name = "friend_id"))
+    @JsonIgnore
     private List<User> friends = new ArrayList<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)

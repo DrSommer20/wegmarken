@@ -1,5 +1,6 @@
 package com.wegmarken.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,10 +16,12 @@ public class TripMember {
 
     @ManyToOne
     @JoinColumn(name = "trip_id", nullable = false)
+    @JsonIgnore
     private Trip trip;
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private User user;
 
     private boolean deletedLocally = false;
