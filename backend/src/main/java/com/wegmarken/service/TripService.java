@@ -13,6 +13,7 @@ public interface TripService {
     List<Trip> getAllTrips();
     
     Stop addStop(Long tripId, Stop stop);
+    Stop updateStop(Long tripId, Long stopId, Stop stop);
     
     TripImage addImage(Long tripId, Long stopId, MultipartFile file);
 }

@@ -1,10 +1,23 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, Modal, TextInput, ScrollView } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, TextInput, ScrollView, KeyboardAvoidingView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import apiClient from '../../api/apiClient';
 import { writeNfcTag } from '../../services/nfcService';
 import { BlurView } from 'expo-blur';
 import MapComponent from '../../components/MapComponent';
+import DatePickerField from '../../components/DatePicker';
+
+// GlassPanel OUTSIDE the main component so React doesn't unmount/remount it on every state change
+const GlassPanel = ({ children, style }: any) => {
+  if (Platform.OS === 'android') {
+    return <View style={[styles.glassFallback, style]}>{children}</View>;
+  }
+  return (
+    <BlurView intensity={80} tint="dark" style={[styles.glass, style]}>
+      {children}
+    </BlurView>
+  );
+};
 
 export default function TripScreen() {
   const { id } = useLocalSearchParams();
@@ -15,6 +28,7 @@ export default function TripScreen() {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [selectedStop, setSelectedStop] = useState<any>(null);
   const [tempMarker, setTempMarker] = useState<{ latitude: number, longitude: number } | null>(null);
+  const [showStopList, setShowStopList] = useState(false);
   
   // New Stop State
   const [stopName, setStopName] = useState('');
@@ -36,15 +50,17 @@ export default function TripScreen() {
     }
   };
 
-  const handleMapClick = (lat: number, lng: number) => {
+  const handleMapClick = useCallback((lat: number, lng: number) => {
     if (mode === 'edit') {
       setTempMarker({ latitude: lat, longitude: lng });
       setSelectedStop(null);
     }
-  };
+  }, [mode]);
 
   const saveStop = async () => {
     if (!tempMarker || !stopName) return Alert.alert('Fehler', 'Bitte Name und Position angeben');
+    
+    const nextOrder = (trip?.stops?.length || 0);
     
     try {
       await apiClient.post(`/trips/${id}/stops`, {
@@ -52,7 +68,8 @@ export default function TripScreen() {
         description: stopDesc,
         stopDate: stopDate || null,
         latitude: tempMarker.latitude,
-        longitude: tempMarker.longitude
+        longitude: tempMarker.longitude,
+        sortOrder: nextOrder
       });
       setTempMarker(null);
       setStopName('');
@@ -69,45 +86,137 @@ export default function TripScreen() {
     writeNfcTag(url);
   };
 
-  const GlassPanel = ({ children, style }: any) => {
-    if (Platform.OS === 'android') {
-      return <View style={[styles.glassFallback, style]}>{children}</View>;
+  // Get sorted stops for display
+  const getSortedStops = () => {
+    if (!trip?.stops) return [];
+    const stops = [...trip.stops];
+    if (trip.tripType === 'ROADTRIP') {
+      // For roadtrips: sort by sortOrder first, then by date
+      stops.sort((a: any, b: any) => {
+        if (a.sortOrder !== null && b.sortOrder !== null && a.sortOrder !== b.sortOrder) {
+          return a.sortOrder - b.sortOrder;
+        }
+        if (a.stopDate && b.stopDate) return a.stopDate.localeCompare(b.stopDate);
+        return 0;
+      });
     }
-    return (
-      <BlurView intensity={80} tint="dark" style={[styles.glass, style]}>
-        {children}
-      </BlurView>
-    );
+    return stops;
+  };
+
+  const moveStop = async (index: number, direction: 'up' | 'down') => {
+    const sorted = getSortedStops();
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= sorted.length) return;
+    
+    // Swap sortOrder values
+    const stopA = sorted[index];
+    const stopB = sorted[targetIndex];
+    
+    try {
+      await apiClient.put(`/trips/${id}/stops/${stopA.id}`, { ...stopA, sortOrder: targetIndex });
+      await apiClient.put(`/trips/${id}/stops/${stopB.id}`, { ...stopB, sortOrder: index });
+      fetchTrip();
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   if (!trip) return <View style={styles.center}><Text style={{ color: 'white' }}>Lade...</Text></View>;
 
+  const sortedStops = getSortedStops();
+  const isRoadtrip = trip.tripType === 'ROADTRIP';
+
   return (
     <View style={styles.container}>
       <MapComponent 
-        stops={trip.stops || []} 
+        stops={sortedStops} 
         onMapClick={handleMapClick}
         tempMarker={tempMarker}
         onMarkerClick={(stop) => {
           if (mode === 'view') {
             setSelectedStop(stop);
             setTempMarker(null);
+            setShowStopList(false);
           }
         }}
       />
       
       {/* Top Buttons */}
       <View style={styles.topControls}>
-        <TouchableOpacity style={styles.controlBtn} onPress={() => setMode(mode === 'view' ? 'edit' : 'view')}>
+        <TouchableOpacity style={styles.controlBtn} onPress={() => {
+          setShowStopList(!showStopList);
+          setSelectedStop(null);
+          setTempMarker(null);
+        }}>
+          <Text style={styles.controlBtnText}>📋 Stops</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.controlBtn} onPress={() => {
+          setMode(mode === 'view' ? 'edit' : 'view');
+          setShowStopList(false);
+          setSelectedStop(null);
+          setTempMarker(null);
+        }}>
           <Text style={styles.controlBtnText}>{mode === 'view' ? '✏️ Bearbeiten' : '👁️ Ansicht'}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.controlBtn} onPress={handleNfc}>
-          <Text style={styles.controlBtnText}>🧲 NFC</Text>
+          <Text style={styles.controlBtnText}>🧲</Text>
         </TouchableOpacity>
       </View>
 
+      {/* Stop List Panel */}
+      {showStopList && (
+        <GlassPanel style={styles.stopListOverlay}>
+          <View style={styles.overlayHeader}>
+            <Text style={styles.overlayTitle}>
+              {isRoadtrip ? '🚗 Route' : '📍 Stops'} ({sortedStops.length})
+            </Text>
+            <TouchableOpacity onPress={() => setShowStopList(false)}>
+              <Text style={{color: 'white', fontSize: 20}}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ maxHeight: 300 }}>
+            {sortedStops.map((stop: any, index: number) => (
+              <View key={stop.id} style={styles.stopListItem}>
+                <View style={styles.stopListLeft}>
+                  {isRoadtrip && (
+                    <View style={styles.stopNumber}>
+                      <Text style={styles.stopNumberText}>{index + 1}</Text>
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.stopListName}>{stop.name}</Text>
+                    {stop.stopDate && <Text style={styles.stopListDate}>{stop.stopDate}</Text>}
+                  </View>
+                </View>
+                {isRoadtrip && mode === 'edit' && (
+                  <View style={styles.sortButtons}>
+                    <TouchableOpacity 
+                      style={[styles.sortBtn, index === 0 && styles.sortBtnDisabled]}
+                      onPress={() => moveStop(index, 'up')}
+                      disabled={index === 0}
+                    >
+                      <Text style={styles.sortBtnText}>▲</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.sortBtn, index === sortedStops.length - 1 && styles.sortBtnDisabled]}
+                      onPress={() => moveStop(index, 'down')}
+                      disabled={index === sortedStops.length - 1}
+                    >
+                      <Text style={styles.sortBtnText}>▼</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            ))}
+            {sortedStops.length === 0 && (
+              <Text style={{ color: '#555', textAlign: 'center', marginTop: 20 }}>Noch keine Stops</Text>
+            )}
+          </ScrollView>
+        </GlassPanel>
+      )}
+
       {/* Selected Stop Details (View Mode) */}
-      {mode === 'view' && selectedStop && (
+      {mode === 'view' && selectedStop && !showStopList && (
         <GlassPanel style={styles.overlay}>
           <View style={styles.overlayHeader}>
             <Text style={styles.title}>{selectedStop.name}</Text>
@@ -121,47 +230,63 @@ export default function TripScreen() {
       )}
 
       {/* Add Stop Form (Edit Mode) */}
-      {mode === 'edit' && tempMarker && (
-        <GlassPanel style={styles.overlay}>
-          <Text style={styles.overlayTitle}>Neuen Stopp hinzufügen</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Name des Stopps"
-            placeholderTextColor="#888"
-            value={stopName}
-            onChangeText={setStopName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Beschreibung"
-            placeholderTextColor="#888"
-            value={stopDesc}
-            onChangeText={setStopDesc}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Datum (YYYY-MM-DD)"
-            placeholderTextColor="#888"
-            value={stopDate}
-            onChangeText={setStopDate}
-          />
-          <View style={styles.actionRow}>
-            <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setTempMarker(null)}>
-              <Text style={styles.btnText}>Abbrechen</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, styles.confirmBtn]} onPress={saveStop}>
-              <Text style={styles.btnText}>Speichern</Text>
-            </TouchableOpacity>
-          </View>
-        </GlassPanel>
+      {mode === 'edit' && tempMarker && !showStopList && (
+        <KeyboardAvoidingView 
+          style={styles.formWrapper}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={100}
+        >
+          <GlassPanel style={styles.overlayForm}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Text style={styles.overlayTitle}>Neuen Stopp hinzufügen</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Name des Stopps"
+                placeholderTextColor="#888"
+                value={stopName}
+                onChangeText={setStopName}
+                autoCapitalize="sentences"
+              />
+              <TextInput
+                style={[styles.input, { minHeight: 50, textAlignVertical: 'top' }]}
+                placeholder="Beschreibung (optional)"
+                placeholderTextColor="#888"
+                value={stopDesc}
+                onChangeText={setStopDesc}
+                multiline
+              />
+              <DatePickerField value={stopDate} onChange={setStopDate} placeholder="Datum wählen" />
+              <View style={styles.actionRow}>
+                <TouchableOpacity style={[styles.btn, styles.cancelBtn]} onPress={() => setTempMarker(null)}>
+                  <Text style={styles.btnText}>Abbrechen</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.confirmBtn]} onPress={saveStop}>
+                  <Text style={styles.btnText}>Speichern</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </GlassPanel>
+        </KeyboardAvoidingView>
       )}
 
       {/* Default Overlay (when nothing selected) */}
-      {!selectedStop && !tempMarker && (
+      {!selectedStop && !tempMarker && !showStopList && (
         <GlassPanel style={styles.overlay}>
-          <Text style={styles.title}>{trip.name}</Text>
-          <Text style={styles.desc}>{trip.description}</Text>
-          <Text style={styles.dateText}>{trip.startDate} bis {trip.endDate}</Text>
+          <View style={styles.overlayHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{trip.name}</Text>
+              {isRoadtrip && (
+                <View style={[styles.badge, { alignSelf: 'flex-start', marginTop: 4 }]}>
+                  <Text style={styles.badgeText}>🚗 Roadtrip</Text>
+                </View>
+              )}
+            </View>
+          </View>
+          {trip.description ? <Text style={styles.desc}>{trip.description}</Text> : null}
+          {(trip.startDate || trip.endDate) && (
+            <Text style={styles.dateText}>{trip.startDate} → {trip.endDate}</Text>
+          )}
+          <Text style={styles.stopCount}>{sortedStops.length} Stops</Text>
         </GlassPanel>
       )}
     </View>
@@ -173,33 +298,67 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1a1a1a' },
   topControls: {
     position: 'absolute', top: 50, right: 20, left: 20,
-    flexDirection: 'row', justifyContent: 'flex-end', gap: 10, zIndex: 10
+    flexDirection: 'row', justifyContent: 'flex-end', gap: 8, zIndex: 10
   },
   controlBtn: {
-    backgroundColor: 'rgba(30,30,30,0.9)', paddingHorizontal: 16, paddingVertical: 10, 
+    backgroundColor: 'rgba(30,30,30,0.9)', paddingHorizontal: 14, paddingVertical: 10, 
     borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)'
   },
-  controlBtnText: { color: 'white', fontWeight: 'bold' },
+  controlBtnText: { color: 'white', fontWeight: 'bold', fontSize: 13 },
   overlay: {
     position: 'absolute', bottom: 30, left: 20, right: 20,
-    padding: 24, borderRadius: 24, zIndex: 10, overflow: 'hidden'
+    padding: 20, borderRadius: 20, zIndex: 10, overflow: 'hidden'
+  },
+  stopListOverlay: {
+    position: 'absolute', bottom: 30, left: 20, right: 20,
+    padding: 20, borderRadius: 20, zIndex: 10, overflow: 'hidden'
+  },
+  formWrapper: {
+    position: 'absolute', bottom: 30, left: 20, right: 20, zIndex: 10,
+  },
+  overlayForm: {
+    padding: 20, borderRadius: 20, overflow: 'hidden'
   },
   overlayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   overlayTitle: { color: 'white', fontSize: 18, fontWeight: 'bold', marginBottom: 15 },
   glass: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   glassFallback: {
-    backgroundColor: 'rgba(30, 30, 30, 0.9)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)'
+    backgroundColor: 'rgba(30, 30, 30, 0.95)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)'
   },
-  title: { fontSize: 24, fontWeight: 'bold', color: '#ff8a00', marginBottom: 4 },
-  dateText: { color: '#ff8a00', fontSize: 12, fontWeight: 'bold', marginBottom: 8 },
-  desc: { color: 'white', fontSize: 16, lineHeight: 22 },
+  title: { fontSize: 22, fontWeight: 'bold', color: '#ff8a00', marginBottom: 4 },
+  dateText: { color: '#ff8a00', fontSize: 12, fontWeight: 'bold', marginTop: 6 },
+  desc: { color: 'white', fontSize: 15, lineHeight: 22, marginTop: 4 },
+  stopCount: { color: '#555', fontSize: 11, marginTop: 6 },
+  badge: { backgroundColor: 'rgba(229, 46, 113, 0.2)', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
+  badgeText: { color: '#e52e71', fontSize: 11, fontWeight: 'bold' },
   input: {
     backgroundColor: 'rgba(0,0,0,0.3)', color: 'white', padding: 12, 
     borderRadius: 10, marginBottom: 12, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)'
   },
-  actionRow: { flexDirection: 'row', gap: 10 },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   btn: { flex: 1, padding: 12, borderRadius: 10, alignItems: 'center' },
   cancelBtn: { backgroundColor: 'rgba(255,255,255,0.05)' },
   confirmBtn: { backgroundColor: '#ff8a00' },
-  btnText: { color: 'white', fontWeight: 'bold' }
+  btnText: { color: 'white', fontWeight: 'bold' },
+
+  // Stop List
+  stopListItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: 'rgba(0,0,0,0.2)', padding: 12, borderRadius: 12, marginBottom: 8
+  },
+  stopListLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  stopNumber: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: '#e52e71',
+    alignItems: 'center', justifyContent: 'center', marginRight: 10
+  },
+  stopNumberText: { color: 'white', fontWeight: 'bold', fontSize: 12 },
+  stopListName: { color: 'white', fontWeight: 'bold', fontSize: 14 },
+  stopListDate: { color: '#ff8a00', fontSize: 11 },
+  sortButtons: { flexDirection: 'row', gap: 4 },
+  sortBtn: { 
+    backgroundColor: 'rgba(255,255,255,0.1)', width: 28, height: 28, 
+    borderRadius: 6, alignItems: 'center', justifyContent: 'center' 
+  },
+  sortBtnDisabled: { opacity: 0.3 },
+  sortBtnText: { color: 'white', fontSize: 12 },
 });

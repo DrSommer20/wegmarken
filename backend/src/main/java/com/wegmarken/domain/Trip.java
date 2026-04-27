@@ -22,6 +22,8 @@ public class Trip {
     
     private java.time.LocalDate startDate;
     private java.time.LocalDate endDate;
+    
+    private String tripType; // NORMAL or ROADTRIP
 
     @OneToMany(mappedBy = "trip", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Stop> stops = new ArrayList<>();

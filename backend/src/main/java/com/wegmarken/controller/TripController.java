@@ -41,6 +41,11 @@ public class TripController {
         return ResponseEntity.ok(tripService.addStop(tripId, stop));
     }
 
+    @PutMapping("/{tripId}/stops/{stopId}")
+    public ResponseEntity<Stop> updateStop(@PathVariable Long tripId, @PathVariable Long stopId, @RequestBody Stop stop) {
+        return ResponseEntity.ok(tripService.updateStop(tripId, stopId, stop));
+    }
+
     @PostMapping("/{tripId}/images")
     public ResponseEntity<TripImage> uploadImage(
             @PathVariable Long tripId,

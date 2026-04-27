@@ -65,6 +65,23 @@ public class TripServiceImpl implements TripService {
     }
 
     @Override
+    public Stop updateStop(Long tripId, Long stopId, Stop updatedStop) {
+        Trip trip = getTrip(tripId);
+        Stop stop = stopRepository.findById(stopId)
+                .orElseThrow(() -> new RuntimeException("Stop not found"));
+        if (!stop.getTrip().getId().equals(trip.getId())) {
+            throw new RuntimeException("Stop does not belong to this trip");
+        }
+        stop.setName(updatedStop.getName());
+        stop.setDescription(updatedStop.getDescription());
+        stop.setStopDate(updatedStop.getStopDate());
+        stop.setSortOrder(updatedStop.getSortOrder());
+        stop.setLatitude(updatedStop.getLatitude());
+        stop.setLongitude(updatedStop.getLongitude());
+        return stopRepository.save(stop);
+    }
+
+    @Override
     public TripImage addImage(Long tripId, Long stopId, MultipartFile file) {
         Trip trip = getTrip(tripId);
         Stop stop = null;
