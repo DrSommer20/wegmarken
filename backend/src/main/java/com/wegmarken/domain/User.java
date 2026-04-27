@@ -24,6 +24,12 @@ public class User {
     @Column(nullable = false)
     private String password;
 
+    private String email;
+    private String mapPreference = "standard";
+    private Double usedStorageMb = 0.0;
+    private Double maxStorageMb = 500.0; // Free tier
+    private String subscriptionTier = "FREE";
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @JsonIgnore
     private List<Trip> trips = new ArrayList<>();

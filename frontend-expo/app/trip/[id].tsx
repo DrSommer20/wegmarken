@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Platform, TextInput, ScrollView, KeyboardAvoidingView, Image, Modal, Dimensions } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import apiClient from '../../api/apiClient';
 import { writeNfcTag } from '../../services/nfcService';
 import { BlurView } from 'expo-blur';
@@ -57,8 +57,13 @@ export default function TripScreen() {
 
   useEffect(() => {
     fetchTrip();
-    loadMapType();
   }, [id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadMapType();
+    }, [])
+  );
 
   const loadMapType = async () => {
     try {

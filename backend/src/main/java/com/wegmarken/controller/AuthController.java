@@ -62,4 +62,53 @@ public class AuthController {
         private String token;
         public AuthResponse(String token) { this.token = token; }
     }
+
+    @Data
+    static class PasswordChangeRequest {
+        private String oldPassword;
+        private String newPassword;
+    }
+
+    @Data
+    static class PreferenceRequest {
+        private String mapType;
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<User> getCurrentUser(java.security.Principal principal) {
+        User user = userRepository.findByUsername(principal.getName())
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        return ResponseEntity.ok(user);
+    }
+
+    @PutMapping("/password")
+    public ResponseEntity<?> changePassword(java.security.Principal principal, @RequestBody PasswordChangeRequest request) {
+        User user = userRepository.findByUsername(principal.getName())
+            .orElseThrow(() -> new RuntimeException("User not found"));
+            
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            return ResponseEntity.badRequest().body(java.util.Map.of("message", "Altes Passwort ist falsch"));
+        }
+        
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/account")
+    public ResponseEntity<?> deleteAccount(java.security.Principal principal) {
+        User user = userRepository.findByUsername(principal.getName())
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        userRepository.delete(user);
+        return ResponseEntity.ok().build();
+    }
+
+    @PutMapping("/preferences")
+    public ResponseEntity<?> updatePreferences(java.security.Principal principal, @RequestBody PreferenceRequest request) {
+        User user = userRepository.findByUsername(principal.getName())
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setMapPreference(request.getMapType());
+        userRepository.save(user);
+        return ResponseEntity.ok().build();
+    }
 }

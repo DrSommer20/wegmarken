@@ -28,23 +28,13 @@ export default function SettingsScreen() {
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
 
-  // Storage (mock for now)
-  const currentTier = STORAGE_TIERS.FREE;
-  const usedMB = 12.4; // TODO: fetch from backend
+  // Storage
+  const [currentTier, setCurrentTier] = useState(STORAGE_TIERS.FREE);
+  const [usedMB, setUsedMB] = useState(0.0);
 
   useEffect(() => {
-    loadPreferences();
     fetchUserInfo();
   }, []);
-
-  const loadPreferences = async () => {
-    try {
-      const savedMapType = Platform.OS === 'web' 
-        ? localStorage.getItem('mapType') 
-        : await AsyncStorage.getItem('mapType');
-      if (savedMapType) setMapType(savedMapType as any);
-    } catch (e) { /* ignore */ }
-  };
 
   const saveMapType = async (type: 'standard' | 'satellite' | 'hybrid') => {
     setMapType(type);
@@ -54,6 +44,7 @@ export default function SettingsScreen() {
       } else {
         await AsyncStorage.setItem('mapType', type);
       }
+      await apiClient.put('/auth/preferences', { mapType: type });
     } catch (e) { /* ignore */ }
   };
 
@@ -62,10 +53,21 @@ export default function SettingsScreen() {
       const res = await apiClient.get('/auth/me');
       setUsername(res.data.username || '');
       setEmail(res.data.email || '');
+      
+      if (res.data.mapPreference) {
+        setMapType(res.data.mapPreference as any);
+        if (Platform.OS === 'web') localStorage.setItem('mapType', res.data.mapPreference);
+        else AsyncStorage.setItem('mapType', res.data.mapPreference);
+      }
+
+      setUsedMB(res.data.usedStorageMb || 0);
+      
+      const tierKey = res.data.subscriptionTier as keyof typeof STORAGE_TIERS;
+      if (STORAGE_TIERS[tierKey]) {
+        setCurrentTier(STORAGE_TIERS[tierKey]);
+      }
     } catch (e) {
-      // Endpoint might not exist yet — use placeholder
-      setUsername('testuser');
-      setEmail('');
+      // Fallback
     }
   };
 
