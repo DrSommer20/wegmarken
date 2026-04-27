@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <link rel="manifest" href="/manifest.json">
+    <title>Wegmarken - Reise-Erinnerungen</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+      
+      <!-- AUTH SCREEN -->
+      <div id="auth-screen" class="screen flex-center">
+        <div class="glass-panel p-6 text-center">
+          <h1 class="logo-title">Wegmarken</h1>
+          <p class="mb-4">Bitte melde dich an</p>
+          <input type="text" id="auth-user" placeholder="Benutzername" class="input-field" />
+          <input type="password" id="auth-pass" placeholder="Passwort" class="input-field" />
+          <div class="actions mt-4">
+            <button id="btn-login" class="btn primary">Login</button>
+            <button id="btn-register" class="btn secondary">Registrieren</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DASHBOARD SCREEN -->
+      <div id="dashboard-screen" class="screen hidden">
+        <header class="p-6 flex-between">
+          <h1 class="logo-title">Meine Reisen</h1>
+          <button id="btn-logout" class="btn secondary small">Logout</button>
+        </header>
+        
+        <div class="p-6">
+          <button id="btn-new-trip" class="btn primary w-full mb-6">Neue Reise anlegen</button>
+          <div id="trip-list" class="trip-grid">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+      <!-- MAP SCREEN -->
+      <div id="map-screen" class="screen hidden">
+        <div id="map"></div>
+        
+        <button id="btn-back" class="floating-btn top-left">← Zurück</button>
+        <button id="btn-nfc" class="floating-btn top-right">🧲 NFC</button>
+        
+        <!-- UI Overlay -->
+        <div id="ui-overlay" class="glass-panel">
+          <header>
+            <h1 id="trip-title">Wegmarken</h1>
+            <p id="trip-desc">Tippe auf eine Wegmarke oder füge neue Erinnerungen hinzu.</p>
+          </header>
+          
+          <div class="actions">
+            <button id="btn-add-stop" class="btn primary">Stop hinzufügen</button>
+            <button id="btn-add-image" class="btn secondary">Bild hochladen</button>
+          </div>
+
+          <div id="stop-list-container">
+            <h3>Stationen</h3>
+            <ul id="stop-list">
+              <!-- Dynamically populated -->
+            </ul>
+          </div>
+        </div>
+
+        <!-- Modal for adding stop -->
+        <div id="stop-modal" class="modal hidden">
+          <div class="modal-content glass-panel">
+            <h2>Neuer Stop</h2>
+            <input type="text" id="stop-name" placeholder="Name (z.B. Eiffelturm)" class="input-field" />
+            <textarea id="stop-desc" placeholder="Beschreibung" class="input-field"></textarea>
+            <div class="modal-actions">
+              <button id="btn-save-stop" class="btn primary">Speichern</button>
+              <button id="btn-close-modal" class="btn secondary">Abbrechen</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal for NFC Info -->
+        <div id="nfc-modal" class="modal hidden">
+          <div class="modal-content glass-panel">
+            <h2>NFC Setup</h2>
+            <p>Um diese Reise mit einem NFC-Magneten zu verknüpfen, schreibe folgende URL auf den Tag:</p>
+            <input type="text" id="nfc-url" readonly class="input-field bg-darker text-sm mt-2" />
+            <p class="text-xs mt-2 text-gray">Nutze dafür z.B. die App "NFC Tools". Wenn du das nächste Mal den Magneten scannst, landest du direkt hier!</p>
+            <div class="modal-actions">
+              <button id="btn-close-nfc" class="btn primary">Verstanden</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Hidden file input for image upload -->
+      <input type="file" id="image-upload" accept="image/jpeg, image/png, image/heic" style="display: none;" />
+
+    </div>
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
