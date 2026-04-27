@@ -213,4 +213,21 @@ public class TripServiceImpl implements TripService {
 
         return savedImages;
     }
+
+    @Override
+    public TripImage assignImageToStop(Long tripId, Long imageId, Long stopId) {
+        Trip trip = getTrip(tripId);
+        TripImage image = tripImageRepository.findById(imageId)
+                .orElseThrow(() -> new RuntimeException("Image not found"));
+        if (!image.getTrip().getId().equals(trip.getId())) {
+            throw new RuntimeException("Image does not belong to this trip");
+        }
+        Stop stop = stopRepository.findById(stopId)
+                .orElseThrow(() -> new RuntimeException("Stop not found"));
+        if (!stop.getTrip().getId().equals(trip.getId())) {
+            throw new RuntimeException("Stop does not belong to this trip");
+        }
+        image.setStop(stop);
+        return tripImageRepository.save(image);
+    }
 }

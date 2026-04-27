@@ -18,4 +18,6 @@ public interface TripService {
     TripImage addImage(Long tripId, Long stopId, MultipartFile file);
     
     List<TripImage> bulkAddImages(Long tripId, MultipartFile[] files);
+    
+    TripImage assignImageToStop(Long tripId, Long imageId, Long stopId);
 }

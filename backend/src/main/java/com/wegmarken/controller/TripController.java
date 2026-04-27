@@ -60,4 +60,12 @@ public class TripController {
             @RequestParam("files") MultipartFile[] files) {
         return ResponseEntity.ok(tripService.bulkAddImages(tripId, files));
     }
+
+    @PutMapping("/{tripId}/images/{imageId}/assign/{stopId}")
+    public ResponseEntity<TripImage> assignImageToStop(
+            @PathVariable Long tripId,
+            @PathVariable Long imageId,
+            @PathVariable Long stopId) {
+        return ResponseEntity.ok(tripService.assignImageToStop(tripId, imageId, stopId));
+    }
 }

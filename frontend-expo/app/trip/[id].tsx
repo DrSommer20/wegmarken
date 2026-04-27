@@ -48,6 +48,9 @@ export default function TripScreen() {
   // Fullscreen Image
   const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
+  // Assign Image Modal
+  const [assignImage, setAssignImage] = useState<any>(null);
+
   useEffect(() => {
     fetchTrip();
   }, [id]);
@@ -116,6 +119,17 @@ export default function TripScreen() {
       fetchTrip();
     } catch (e) {
       Alert.alert('Fehler', 'Änderungen konnten nicht gespeichert werden');
+    }
+  };
+
+  const assignToStop = async (imageId: number, stopId: number) => {
+    try {
+      await apiClient.put(`/trips/${id}/images/${imageId}/assign/${stopId}`);
+      setAssignImage(null);
+      fetchTrip();
+      Alert.alert('Erfolg', 'Bild wurde dem Stop zugeordnet!');
+    } catch (e) {
+      Alert.alert('Fehler', 'Bild konnte nicht zugeordnet werden');
     }
   };
 
@@ -301,14 +315,11 @@ export default function TripScreen() {
             </TouchableOpacity>
           </View>
           <Text style={{ color: '#aaa', fontSize: 12, marginBottom: 10 }}>
-            Diese Bilder konnten keinem Stop zugeordnet werden. Tippe auf ein Bild um es einem Stop zuzuweisen.
+            Tippe auf ein Bild, um es einem Stop zuzuweisen.
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {unassignedImages.map((img: any) => (
-              <TouchableOpacity key={img.id} onPress={() => {
-                // TODO: Show stop picker to assign image
-                setFullscreenImage(img.url);
-              }}>
+              <TouchableOpacity key={img.id} onPress={() => setAssignImage(img)}>
                 <Image source={{ uri: img.url }} style={styles.stopImage} />
               </TouchableOpacity>
             ))}
@@ -512,6 +523,53 @@ export default function TripScreen() {
         </GlassPanel>
       )}
 
+      {/* Assign Image to Stop Modal */}
+      <Modal visible={assignImage !== null} transparent animationType="slide">
+        <View style={styles.assignModalOverlay}>
+          <View style={styles.assignModalContent}>
+            <View style={styles.overlayHeader}>
+              <Text style={styles.overlayTitle}>Bild zuordnen</Text>
+              <TouchableOpacity onPress={() => setAssignImage(null)}>
+                <Text style={{color: 'white', fontSize: 20}}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {assignImage && (
+              <TouchableOpacity onPress={() => {
+                setFullscreenImage(assignImage.url);
+              }}>
+                <Image source={{ uri: assignImage.url }} style={styles.assignPreview} resizeMode="cover" />
+                <Text style={{ color: '#aaa', fontSize: 11, textAlign: 'center', marginTop: 4 }}>Tippe für Vollbild</Text>
+              </TouchableOpacity>
+            )}
+
+            <Text style={{ color: '#ccc', fontSize: 14, marginTop: 16, marginBottom: 10, fontWeight: 'bold' }}>
+              Welchem Stop zuweisen?
+            </Text>
+
+            <ScrollView style={{ maxHeight: 250 }}>
+              {sortedStops.map((stop: any) => (
+                <TouchableOpacity 
+                  key={stop.id} 
+                  style={styles.assignStopItem}
+                  onPress={() => assignImage && assignToStop(assignImage.id, stop.id)}
+                >
+                  <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>{stop.name}</Text>
+                  {stop.stopDate ? (
+                    <Text style={{ color: '#ff8a00', fontSize: 11 }}>{stop.stopDate}</Text>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+              {sortedStops.length === 0 && (
+                <Text style={{ color: '#555', textAlign: 'center', marginTop: 20 }}>
+                  Erstelle zuerst Stops, um Bilder zuzuordnen.
+                </Text>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* Fullscreen Image Modal */}
       <Modal visible={fullscreenImage !== null} transparent animationType="fade">
         <View style={styles.fullscreenContainer}>
@@ -603,6 +661,24 @@ const styles = StyleSheet.create({
   // Images
   imageScroll: { marginTop: 15, flexDirection: 'row' },
   stopImage: { width: 80, height: 80, borderRadius: 10, marginRight: 10, backgroundColor: '#333' },
+
+  // Assign Modal
+  assignModalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end'
+  },
+  assignModalContent: {
+    backgroundColor: '#1e1e1e', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, maxHeight: '80%',
+    borderTopWidth: 1, borderColor: 'rgba(255,255,255,0.1)'
+  },
+  assignPreview: {
+    width: '100%', height: 180, borderRadius: 12, backgroundColor: '#333'
+  },
+  assignStopItem: {
+    backgroundColor: 'rgba(255,255,255,0.06)', padding: 14, borderRadius: 12, marginBottom: 8,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)'
+  },
 
   // Fullscreen
   fullscreenContainer: {
