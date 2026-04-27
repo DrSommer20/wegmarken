@@ -2,6 +2,7 @@
   "expo": {
     "name": "frontend-expo",
     "slug": "frontend-expo",
+    "scheme": "wegmarken",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,6 +26,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-router",
+      "react-native-nfc-manager",
+      "expo-secure-store"
+    ]
   }
 }
