@@ -40,6 +40,7 @@ public class TripServiceImpl implements TripService {
     public Trip createTrip(Trip trip) {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         com.wegmarken.domain.User user = userRepository.findByUsername(username).orElseThrow();
+        trip.setUser(user);
         Trip savedTrip = tripRepository.save(trip);
         
         TripMember member = new TripMember(savedTrip, user);
@@ -55,12 +56,23 @@ public class TripServiceImpl implements TripService {
         
         Trip trip = tripRepository.findById(id).orElseThrow(() -> new RuntimeException("Trip not found"));
         
-        // Check if user is a member and hasn't deleted it locally
-        tripMemberRepository.findByTripIdAndUserId(id, user.getId())
-                .filter(m -> !m.isDeletedLocally())
-                .orElseThrow(() -> new RuntimeException("Unauthorized access to trip"));
+        // Check membership first (new system)
+        var membership = tripMemberRepository.findByTripIdAndUserId(id, user.getId());
+        if (membership.isPresent() && !membership.get().isDeletedLocally()) {
+            return trip;
+        }
         
-        return trip;
+        // Fallback: check old user_id ownership (backward compat for old trips)
+        if (trip.getUser() != null && trip.getUser().getId().equals(user.getId())) {
+            // Auto-migrate: create a TripMember entry for this old trip
+            if (membership.isEmpty()) {
+                TripMember member = new TripMember(trip, user);
+                tripMemberRepository.save(member);
+            }
+            return trip;
+        }
+        
+        throw new RuntimeException("Unauthorized access to trip");
     }
 
     @Override
@@ -68,10 +80,28 @@ public class TripServiceImpl implements TripService {
         String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
         com.wegmarken.domain.User user = userRepository.findByUsername(username).orElseThrow();
         
+        // Get trips from new membership system
         List<TripMember> memberships = tripMemberRepository.findByUserIdAndDeletedLocallyFalse(user.getId());
-        return memberships.stream()
+        java.util.Set<Long> memberTripIds = memberships.stream()
+                .map(m -> m.getTrip().getId())
+                .collect(java.util.stream.Collectors.toSet());
+        
+        List<Trip> result = new java.util.ArrayList<>(memberships.stream()
                 .map(TripMember::getTrip)
-                .collect(Collectors.toList());
+                .collect(Collectors.toList()));
+        
+        // Also get old-style trips (user_id) that don't have memberships yet
+        List<Trip> oldTrips = tripRepository.findByUserId(user.getId());
+        for (Trip oldTrip : oldTrips) {
+            if (!memberTripIds.contains(oldTrip.getId())) {
+                // Auto-migrate: create membership
+                TripMember member = new TripMember(oldTrip, user);
+                tripMemberRepository.save(member);
+                result.add(oldTrip);
+            }
+        }
+        
+        return result;
     }
 
     @Override

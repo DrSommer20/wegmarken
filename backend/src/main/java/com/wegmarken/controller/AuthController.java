@@ -95,6 +95,12 @@ public class AuthController {
     public ResponseEntity<?> getCurrentUser(java.security.Principal principal) {
         User user = userRepository.findByUsername(principal.getName())
             .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        // Ensure subscription is never null (old users may not have it)
+        if (user.getSubscription() == null) {
+            user.setSubscription(new com.wegmarken.domain.Subscription());
+            userRepository.save(user);
+        }
             
         double baseQuota = subscriptionService.getBaseQuota(user.getSubscription().getTier());
         double totalMax = baseQuota + user.getSubscription().getExtraQuotaMb();
