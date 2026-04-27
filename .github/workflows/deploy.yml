@@ -78,7 +78,7 @@ jobs:
             # Wait for containers to start
             sleep 15
             
-            # Health check backend
+            # Health check backend - 
             if ! curl -f http://localhost:5174/api/health; then
               echo "Backend health check failed!"
               exit 1
