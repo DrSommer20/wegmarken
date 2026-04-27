@@ -79,13 +79,13 @@ jobs:
             sleep 15
             
             # Health check backend
-            if ! curl -f http://localhost:8080/api/health; then
+            if ! curl -f http://localhost:5174/api/health; then
               echo "Backend health check failed!"
               exit 1
             fi
             
             # Health check frontend
-            if ! curl -f http://localhost:80; then
+            if ! curl -f http://localhost:5173; then
               echo "Frontend health check failed!"
               exit 1
             fi
